@@ -1,6 +1,6 @@
 # Kuilei
 
-This project is inspired by [Prow](https://github.com/kubernetes/test-infra/tree/master/prow), and implements the chat-ops, automatic PR merging in a form of [Probot](https://github.com/probot/probot) Github App
+This project is inspired by [Prow](https://github.com/kubernetes/test-infra/tree/master/prow), and implements chat-ops, automatic PR merging in a form of [Probot](https://github.com/probot/probot) Github App
 > Prow is a Kubernetes based CI/CD system. Jobs can be triggered by various types of events and report their status to many different services. In addition to job execution, Prow provides GitHub automation in the form of policy enforcement, chat-ops via /foo style commands, and automatic PR merging.
 
 
