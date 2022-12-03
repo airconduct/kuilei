@@ -1,0 +1,37 @@
+{
+  "action": "opened",
+  "number": 5,
+  "pull_request": {
+    "id": 123,
+    "number": 5,
+    "state": "open",
+    "head": {
+      "ref": "test-1",
+      "sha": "d81102ea8baa41ec1d26a11db96aec1de887bffd"
+    },
+    "author_association": "CONTRIBUTOR",
+    "auto_merge": null,
+    "active_lock_reason": null,
+    "merged": false,
+    "mergeable": null,
+    "rebaseable": null,
+    "mergeable_state": "unknown",
+    "merged_by": null,
+    "comments": 0,
+    "review_comments": 0,
+    "maintainer_can_modify": false,
+    "commits": 1,
+    "additions": 1,
+    "deletions": 1,
+    "changed_files": 1
+  },
+  "repository": {
+    "name": "testing-things",
+    "owner": {
+      "login": "hiimbex"
+    }
+  },
+  "installation": {
+    "id": 2
+  }
+}

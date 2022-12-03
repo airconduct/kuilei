@@ -1,0 +1,36 @@
+{
+  "action": "created",
+  "issue": {
+    "number": 3,
+    "title": "test",
+    "labels": [
+      {
+        "name": "ok-to-test",
+        "color": "5319E7",
+        "default": false,
+        "description": ""
+      }
+    ],
+    "state": "open",
+    "body": "test",
+    "user": {
+      "login": "test",
+      "type": "User"
+    }
+  },
+  "comment": {
+    "body": "/lgtm\n/approve\r\n/kind bug\r\n/hold"
+  },
+  "repository": {
+    "name": "testing-things",
+    "owner": {
+      "login": "hiimbex"
+    }
+  },
+  "sender": {
+    "type": "User"
+  },
+  "installation": {
+    "id": 2
+  }
+}

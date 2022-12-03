@@ -1,0 +1,33 @@
+{
+    "action": "created",
+    "installation": {
+      "id": 2,
+      "account": {
+        "login": "hiimbex",
+        "id": 123,
+        "type": "Organization",
+        "site_admin": false
+      },
+      "repository_selection": "all",
+      "app_id": 123,
+      "app_slug": "kuilei-bot",
+      "target_id": 123,
+      "target_type": "Organization",
+      "permissions": {
+        "issues": "write",
+        "metadata": "read"
+      },
+      "events": [
+        "issues"
+      ]
+    },
+    "repositories": [
+      {
+        "id": 123,
+        "name": "testing-things",
+        "full_name": "hiimbex/testing-things",
+        "private": true
+      }
+    ],
+    "requester": null
+  }
