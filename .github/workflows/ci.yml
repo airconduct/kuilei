@@ -27,4 +27,4 @@ jobs:
         node-version: 16
         cache: 'npm'
     - name: Unit test
-      run: npm test
+      run: npm install && npm test
