@@ -175,7 +175,14 @@ describe("My Probot app", () => {
       .reply(200)
       // Get checkruns
       .get("/repos/hiimbex/testing-things/commits/test-1/check-runs")
-      .reply(200, {check_runs: [{name:"tide"}]})
+      .reply(200, {check_runs: [{name:"tide", id: 1}]})
+      .patch("/repos/hiimbex/testing-things/check-runs/1", (body: any)=>{
+        expect(body).toMatchObject({
+          status: "in_progress"
+        })
+        return true
+      })
+      .reply(200)
       // Create checkruns
       .post("/repos/hiimbex/testing-things/check-runs", (body:any)=>{
         expect(body).toMatchObject({
@@ -210,6 +217,9 @@ describe("My Probot app", () => {
         return true
       })
       .reply(200)
+      // Mock owners file
+      .get("/repos/hiimbex/testing-things/contents/OWNERS")
+      .reply(200, "approvers:\n- lubingtan")
 
     // Receive a webhook event
     await probot.receive({ name: "issue_comment", payload: issue_comment_created_payload });

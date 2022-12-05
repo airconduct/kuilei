@@ -1,4 +1,8 @@
 import { Probot } from "probot";
+import yaml from "js-yaml";
+
+// const yaml_load = <T = ReturnType<typeof original>>(...args: Parameters<typeof original>): T => yaml_load(...args);
+
 
 const needLabels = [
   {
@@ -67,6 +71,20 @@ export = (app: Probot) => {
       }));
     }
   })
+  app.on("installation_repositories.added", async (context)=>{
+    const owner = context.payload.installation.account.login
+    await Promise.all(context.payload.repositories_added.map(async (repo) => {
+      await Promise.all(needLabels.map(async (label)=>{
+        await context.octokit.issues.createLabel({
+          owner: owner,
+          repo: repo.name,
+          name: label.name,
+          color: label.color,
+          description: label.description
+        })
+      }))
+    }));
+  })
 
   app.on("issues.opened", async (context) => {
     await context.octokit.issues.createComment(context.issue({
@@ -74,7 +92,7 @@ export = (app: Probot) => {
     }));
   });
 
-  app.on("pull_request.opened", async (context) => {
+  app.on(["pull_request.opened", "pull_request.edited", "pull_request.reopened"], async (context) => {
     // Create comment
     context.payload.pull_request.head.ref
     await context.octokit.issues.createComment(context.issue({
@@ -84,8 +102,14 @@ export = (app: Probot) => {
     const resp = await context.octokit.checks.listForRef(context.repo({ref: context.payload.pull_request.head.ref}))
     if (resp.data.check_runs) {
       for (let i=0;i<resp.data.check_runs.length;i++) {
-        if (resp.data.check_runs.at(i)?.name == "tide") {
+        const check_run  = resp.data.check_runs.at(i)
+        if (check_run && check_run.name == "tide") {
           // Exists
+          // udpate tide check
+          await context.octokit.checks.update(context.repo({
+            check_run_id: check_run.id,
+            status: "in_progress"
+          }))
           return
         }
       }
@@ -102,6 +126,21 @@ export = (app: Probot) => {
     if (context.isBot) {
       return
     }
+    if (!context.payload.issue.pull_request) {
+      return
+    }
+    const resp = await context.octokit.request(context.repo({
+      method: "GET",
+      url: "/repos/{owner}/{repo}/contents/{path}",
+      path: "OWNERS",
+      mediaType: {
+        format: "raw",
+    }}))
+    context.log({"content_resp____________is": resp})
+    const owners_config = yaml.load(resp.data) as {approvers:string[],reviewers:string[]}
+    const username = context.payload.comment.user.login.toLowerCase()
+    const approveAuth = owners_config.approvers.includes(username)
+    const lgtmAuth = approveAuth || owners_config.reviewers.includes(username)
     // TODO: support more commands
     const commands = getCommands(context.payload.comment.body)
     var labels : string[] = []
@@ -109,7 +148,16 @@ export = (app: Probot) => {
       if ( val && commandLabels.has(val)) {
         const label = commandLabels.get(val)
         if (label) {
-          labels.push(label)
+          switch (label) {
+            case "lgtm":
+              lgtmAuth && labels.push(label);
+              break;
+            case "approved":
+              approveAuth && labels.push(label)
+              break;
+            default:
+              labels.push(label)
+          }
         }
       }
     })
@@ -125,7 +173,6 @@ export = (app: Probot) => {
     if (resp.data.check_runs) {
       for (let i=0;i<resp.data.check_runs.length;i++) {
         const checkRun = resp.data.check_runs.at(i)
-        context.octokit.pulls.merge
         if (checkRun && checkRun.name == "tide") {
           checkRunID = checkRun.id
         }

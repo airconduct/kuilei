@@ -16,10 +16,16 @@
     "user": {
       "login": "test",
       "type": "User"
+    },
+    "pull_request": {
+      "url": "foo"
     }
   },
   "comment": {
-    "body": "/lgtm\n/approve\r\n/kind bug\r\n/hold"
+    "body": "/lgtm\n/approve\r\n/kind bug\r\n/hold",
+    "user": {
+      "login": "lubingtan"
+    }
   },
   "repository": {
     "name": "testing-things",

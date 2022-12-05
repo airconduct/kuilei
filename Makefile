@@ -1,4 +1,4 @@
-VERSION ?= latest
+VERSION ?= $(shell cat version)
 IMAGE_REGISTRY ?= airconduct/kuilei
 
 publish:
