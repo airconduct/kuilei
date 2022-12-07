@@ -132,14 +132,8 @@ describe("My Probot app", () => {
           issues: "write",
         },
       })
-      // Test that a comment is posted
-      .post("/repos/hiimbex/testing-things/issues/5/comments", (body: any) => {
-        expect(body).toMatchObject({body:"Thanks for contributing!"});
-        return true;
-      })
-      .reply(200)
       // Get checkruns
-      .get("/repos/hiimbex/testing-things/commits/test-1/check-runs")
+      .get("/repos/hiimbex/testing-things/commits/d81102ea8baa41ec1d26a11db96aec1de887bffd/check-runs")
       .reply(200, {check_runs: []})
       // Create checkruns
       .post("/repos/hiimbex/testing-things/check-runs", (body:any)=>{
@@ -167,14 +161,8 @@ describe("My Probot app", () => {
           issues: "write",
         },
       })
-      // Test that a comment is posted
-      .post("/repos/hiimbex/testing-things/issues/5/comments", (body: any) => {
-        expect(body).toMatchObject({body:"Thanks for contributing!"});
-        return true;
-      })
-      .reply(200)
       // Get checkruns
-      .get("/repos/hiimbex/testing-things/commits/test-1/check-runs")
+      .get("/repos/hiimbex/testing-things/commits/d81102ea8baa41ec1d26a11db96aec1de887bffd/check-runs")
       .reply(200, {check_runs: [{name:"tide", id: 1}]})
       .patch("/repos/hiimbex/testing-things/check-runs/1", (body: any)=>{
         expect(body).toMatchObject({

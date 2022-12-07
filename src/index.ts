@@ -92,14 +92,9 @@ export = (app: Probot) => {
     }));
   });
 
-  app.on(["pull_request.opened", "pull_request.edited", "pull_request.reopened"], async (context) => {
-    // Create comment
-    context.payload.pull_request.head.ref
-    await context.octokit.issues.createComment(context.issue({
-      body: "Thanks for contributing!"
-    }))
+  app.on(["pull_request.opened", "pull_request.synchronize"], async (context) => {
     // Get tide check
-    const resp = await context.octokit.checks.listForRef(context.repo({ref: context.payload.pull_request.head.ref}))
+    const resp = await context.octokit.checks.listForRef(context.repo({ref: context.payload.pull_request.head.sha}))
     if (resp.data.check_runs) {
       for (let i=0;i<resp.data.check_runs.length;i++) {
         const check_run  = resp.data.check_runs.at(i)
@@ -169,7 +164,7 @@ export = (app: Probot) => {
   app.on(["pull_request.labeled", "pull_request.unlabeled"], async (context) => {
     var checkRunID : number | undefined = undefined
     // Get tide check_run_id
-    const resp = await context.octokit.checks.listForRef(context.repo({ref: context.payload.pull_request.head.ref}))
+    const resp = await context.octokit.checks.listForRef(context.repo({ref: context.payload.pull_request.head.sha}))
     if (resp.data.check_runs) {
       for (let i=0;i<resp.data.check_runs.length;i++) {
         const checkRun = resp.data.check_runs.at(i)
