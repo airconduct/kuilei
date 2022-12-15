@@ -1,0 +1,11 @@
+# Default values for prow.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+organization: airconduct
+credential:
+  app_priviate_key: ""
+  app_id: ""
+  hmac_token: ""
+  minio_username: root
+  minio_passward: root123456
