@@ -1,3 +1,8 @@
+build-local:
+	go build -o bin/hook github.com/airconduct/kuilei/cmd/hook
+
+test:
+	go test -v --race ./...
 
 kind-setup:
 	kind create cluster --config hack/kind.yaml
@@ -10,3 +15,4 @@ kind-setup:
 		--create-namespace \
 		--version v1.10.1 \
 		--set installCRDs=true
+# smee -u https://smee.io/yBh0JX8s0x6RsJGp -t http://localhost:8888/hook

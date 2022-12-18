@@ -4,11 +4,9 @@ on:
   pull_request:
     paths:
       - '.github/workflows/**'
-      - 'src/**'
-      - 'test/**'
+      - '**.go'
       - 'Makefile'
-      - 'Dockerfile'
-      - 'package.json'
+      - 'go.**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -18,6 +16,22 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./src/github.com/${{ github.repository }}
     steps:
-    - name: Unit test
-      run: echo test
+      - name: Checkout code
+        uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # v3.1.0
+        with:
+          path: ./src/github.com/${{ github.repository }}
+      - name: Install Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.19
+      - name: Cache Go modules
+        uses: actions/cache@9b0c1fce7a93df8e3bb8926b0d6e9d89e92f20a7 # v3.0.11
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+      - name: Test
+        run: make test
