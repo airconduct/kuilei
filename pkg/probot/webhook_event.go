@@ -1,8 +1,38 @@
 package probot
 
 import (
+	"context"
 	"encoding/json"
+
+	"github.com/go-logr/logr"
 )
+
+func genericHandleFunc[GT GitClientType, PT gitEventType](
+	ctx context.Context, logger logr.Logger,
+	event string, rawPayload []byte,
+	clientGetter func(payload *PT) (*GT, error),
+	handlers map[string]Handler,
+) error {
+	payload := new(PT)
+	if err := parseWebHook(event, rawPayload, payload); err != nil {
+		return err
+	}
+	client, err := clientGetter(payload)
+	if err != nil {
+		return err
+	}
+	handlerKey := getHandlerKey(event, payload)
+	var handlerVal EventHandlerFunc[GT, PT]
+	if _, ok := handlers[handlerKey]; ok {
+		handlerVal = handlers[handlerKey].(EventHandlerFunc[GT, PT])
+	} else if _, ok := handlers[event]; ok {
+		handlerVal = handlers[event].(EventHandlerFunc[GT, PT])
+	} else {
+		return nil
+	}
+	handlerVal(newProbotContext(ctx, logger, client, payload))
+	return nil
+}
 
 type WebhookEvent interface {
 	Type() string
@@ -31,13 +61,13 @@ type Handler interface {
 	handlerIdentyfier()
 }
 
-type handleWith interface {
-	Handle(Handler) error
+type handlerLoader interface {
+	WithHandler(Handler) error
 }
 
-type handleWithFunc func(Handler) error
+type handlerLoadFunc func(Handler) error
 
-func (fn handleWithFunc) Handle(h Handler) error {
+func (fn handlerLoadFunc) WithHandler(h Handler) error {
 	return fn(h)
 }
 
@@ -103,6 +133,18 @@ type gitEventType interface {
 	// 	github.WorkflowDispatchEvent |
 	// 	github.WorkflowJobEvent |
 	// 	github.WorkflowRunEvent |
+}
+
+type gitEventInterface interface {
+	GetAction() string
+}
+
+func getHandlerKey(event string, v interface{}) string {
+	actionGetter, ok := v.(gitEventInterface)
+	if ok && actionGetter.GetAction() != "" {
+		return event + "." + actionGetter.GetAction()
+	}
+	return event
 }
 
 func parseWebHook[T gitEventType](messageType string, payload []byte, out *T) (err error) {

@@ -8,7 +8,7 @@ import (
 
 // "meta"
 
-type MetaContext probot.ProbotContext[probot.GithubClient, github.MetaEvent]
+type MetaContext = probot.ProbotContext[probot.GithubClient, github.MetaEvent]
 
 func MetaHandler(fn func(ctx MetaContext)) probot.EventHandlerFunc[probot.GithubClient, github.MetaEvent] {
 	return func(ctx probot.ProbotContext[probot.GithubClient, github.MetaEvent]) {

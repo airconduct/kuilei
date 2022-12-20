@@ -8,7 +8,7 @@ import (
 
 // "workflow_dispatch"
 
-type WorkflowDispatchContext probot.ProbotContext[probot.GithubClient, github.WorkflowDispatchEvent]
+type WorkflowDispatchContext = probot.ProbotContext[probot.GithubClient, github.WorkflowDispatchEvent]
 
 func WorkflowDispatchHandler(fn func(ctx WorkflowDispatchContext)) probot.EventHandlerFunc[probot.GithubClient, github.WorkflowDispatchEvent] {
 	return func(ctx probot.ProbotContext[probot.GithubClient, github.WorkflowDispatchEvent]) {

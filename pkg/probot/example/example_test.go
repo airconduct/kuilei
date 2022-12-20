@@ -32,7 +32,7 @@ var _ = Describe("Test Probot Example", func() {
 		})
 
 		app.On(github.Event.IssueComment_created, github.Event.IssueComment_edited).
-			Handle(github.IssueCommentHandler(func(ctx github.IssueCommentContext) {
+			WithHandler(github.IssueCommentHandler(func(ctx github.IssueCommentContext) {
 				payload := ctx.Payload()
 				ctx.Logger().Info("Get IssueComment event", "payload", payload)
 				owner := *payload.Repo.Owner.Login

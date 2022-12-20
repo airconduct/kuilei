@@ -1,5 +1,5 @@
 build-local:
-	go build -o bin/hook github.com/airconduct/kuilei/cmd/hook
+	go build -o bin/kuilei github.com/airconduct/kuilei/cmd/kuilei
 
 test:
 	go test -v --race ./...

@@ -8,7 +8,7 @@ import (
 
 // "deploy_key"
 
-type DeployKeyContext probot.ProbotContext[probot.GithubClient, github.DeployKeyEvent]
+type DeployKeyContext = probot.ProbotContext[probot.GithubClient, github.DeployKeyEvent]
 
 func DeployKeyHandler(fn func(ctx DeployKeyContext)) probot.EventHandlerFunc[probot.GithubClient, github.DeployKeyEvent] {
 	return func(ctx probot.ProbotContext[probot.GithubClient, github.DeployKeyEvent]) {

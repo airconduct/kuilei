@@ -8,7 +8,7 @@ import (
 
 // "merge_group"
 
-type MergeGroupContext probot.ProbotContext[probot.GithubClient, github.MergeGroupEvent]
+type MergeGroupContext = probot.ProbotContext[probot.GithubClient, github.MergeGroupEvent]
 
 func MergeGroupHandler(fn func(ctx MergeGroupContext)) probot.EventHandlerFunc[probot.GithubClient, github.MergeGroupEvent] {
 	return func(ctx probot.ProbotContext[probot.GithubClient, github.MergeGroupEvent]) {

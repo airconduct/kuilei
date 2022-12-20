@@ -8,7 +8,7 @@ import (
 
 // "pull_request_review"
 
-type PullRequestReviewContext probot.ProbotContext[probot.GithubClient, github.PullRequestReviewEvent]
+type PullRequestReviewContext = probot.ProbotContext[probot.GithubClient, github.PullRequestReviewEvent]
 
 func PullRequestReviewHandler(fn func(ctx PullRequestReviewContext)) probot.EventHandlerFunc[probot.GithubClient, github.PullRequestReviewEvent] {
 	return func(ctx probot.ProbotContext[probot.GithubClient, github.PullRequestReviewEvent]) {

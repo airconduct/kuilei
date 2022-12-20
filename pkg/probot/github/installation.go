@@ -8,7 +8,7 @@ import (
 
 // "installation"
 
-type InstallationContext probot.ProbotContext[probot.GithubClient, github.InstallationEvent]
+type InstallationContext = probot.ProbotContext[probot.GithubClient, github.InstallationEvent]
 
 func InstallationHandler(fn func(ctx InstallationContext)) probot.EventHandlerFunc[probot.GithubClient, github.InstallationEvent] {
 	return func(ctx probot.ProbotContext[probot.GithubClient, github.InstallationEvent]) {

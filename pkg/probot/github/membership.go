@@ -8,7 +8,7 @@ import (
 
 // "membership"
 
-type MembershipContext probot.ProbotContext[probot.GithubClient, github.MembershipEvent]
+type MembershipContext = probot.ProbotContext[probot.GithubClient, github.MembershipEvent]
 
 func MembershipHandler(fn func(ctx MembershipContext)) probot.EventHandlerFunc[probot.GithubClient, github.MembershipEvent] {
 	return func(ctx probot.ProbotContext[probot.GithubClient, github.MembershipEvent]) {

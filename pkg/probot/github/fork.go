@@ -8,7 +8,7 @@ import (
 
 // "fork"
 
-type ForkContext probot.ProbotContext[probot.GithubClient, github.ForkEvent]
+type ForkContext = probot.ProbotContext[probot.GithubClient, github.ForkEvent]
 
 func ForkHandler(fn func(ctx ForkContext)) probot.EventHandlerFunc[probot.GithubClient, github.ForkEvent] {
 	return func(ctx probot.ProbotContext[probot.GithubClient, github.ForkEvent]) {

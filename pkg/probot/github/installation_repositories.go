@@ -8,7 +8,7 @@ import (
 
 // "installation_repositories"
 
-type InstallationRepositoriesContext probot.ProbotContext[probot.GithubClient, github.InstallationRepositoriesEvent]
+type InstallationRepositoriesContext = probot.ProbotContext[probot.GithubClient, github.InstallationRepositoriesEvent]
 
 func InstallationRepositoriesHandler(fn func(ctx InstallationRepositoriesContext)) probot.EventHandlerFunc[probot.GithubClient, github.InstallationRepositoriesEvent] {
 	return func(ctx probot.ProbotContext[probot.GithubClient, github.InstallationRepositoriesEvent]) {

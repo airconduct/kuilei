@@ -8,7 +8,7 @@ import (
 
 // "workflow_run"
 
-type WorkflowRunContext probot.ProbotContext[probot.GithubClient, github.WorkflowRunEvent]
+type WorkflowRunContext = probot.ProbotContext[probot.GithubClient, github.WorkflowRunEvent]
 
 func WorkflowRunHandler(fn func(ctx WorkflowRunContext)) probot.EventHandlerFunc[probot.GithubClient, github.WorkflowRunEvent] {
 	return func(ctx probot.ProbotContext[probot.GithubClient, github.WorkflowRunEvent]) {

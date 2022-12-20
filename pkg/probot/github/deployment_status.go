@@ -8,7 +8,7 @@ import (
 
 // "deployment_status"
 
-type DeploymentStatusContext probot.ProbotContext[probot.GithubClient, github.DeploymentStatusEvent]
+type DeploymentStatusContext = probot.ProbotContext[probot.GithubClient, github.DeploymentStatusEvent]
 
 func DeploymentStatusHandler(fn func(ctx DeploymentStatusContext)) probot.EventHandlerFunc[probot.GithubClient, github.DeploymentStatusEvent] {
 	return func(ctx probot.ProbotContext[probot.GithubClient, github.DeploymentStatusEvent]) {

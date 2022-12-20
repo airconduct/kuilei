@@ -8,7 +8,7 @@ import (
 
 // "commit_comment"
 
-type CommitCommentContext probot.ProbotContext[probot.GithubClient, github.CommitCommentEvent]
+type CommitCommentContext = probot.ProbotContext[probot.GithubClient, github.CommitCommentEvent]
 
 func CommitCommentHandler(fn func(ctx CommitCommentContext)) probot.EventHandlerFunc[probot.GithubClient, github.CommitCommentEvent] {
 	return func(ctx probot.ProbotContext[probot.GithubClient, github.CommitCommentEvent]) {

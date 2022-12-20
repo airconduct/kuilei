@@ -6,7 +6,7 @@ import (
 	"github.com/airconduct/kuilei/pkg/probot"
 )
 
-type CheckSuiteContext probot.ProbotContext[probot.GithubClient, github.CheckSuiteEvent]
+type CheckSuiteContext = probot.ProbotContext[probot.GithubClient, github.CheckSuiteEvent]
 
 func CheckSuiteHandler(fn func(ctx CheckSuiteContext)) probot.EventHandlerFunc[probot.GithubClient, github.CheckSuiteEvent] {
 	return func(ctx probot.ProbotContext[probot.GithubClient, github.CheckSuiteEvent]) {

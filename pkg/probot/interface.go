@@ -9,7 +9,7 @@ import (
 
 type App[GT GitClientType] interface {
 	AddFlags(flags *pflag.FlagSet)
-	On(events ...WebhookEvent) handleWith
+	On(events ...WebhookEvent) handlerLoader
 	Run(ctx context.Context) error
 }
 

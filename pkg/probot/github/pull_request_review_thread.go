@@ -8,7 +8,7 @@ import (
 
 // "pull_request_review_thread"
 
-type PullRequestReviewThreadContext probot.ProbotContext[probot.GithubClient, github.PullRequestReviewThreadEvent]
+type PullRequestReviewThreadContext = probot.ProbotContext[probot.GithubClient, github.PullRequestReviewThreadEvent]
 
 func PullRequestReviewThreadHandler(fn func(ctx PullRequestReviewThreadContext)) probot.EventHandlerFunc[probot.GithubClient, github.PullRequestReviewThreadEvent] {
 	return func(ctx probot.ProbotContext[probot.GithubClient, github.PullRequestReviewThreadEvent]) {

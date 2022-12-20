@@ -86,6 +86,17 @@ var Event = githubEventSets{
 	Issues_deleted:      issues_deleted(),
 	Issues_demilestoned: issues_demilestoned(),
 	Issues_edited:       issues_edited(),
+	Issues_labeled:      issues_labeled(),
+	Issues_locked:       issues_locked(),
+	Issues_milestoned:   issues_milestoned(),
+	Issues_opened:       issues_opened(),
+	Issues_pinned:       issues_pinned(),
+	Issues_reopened:     issues_reopened(),
+	Issues_transferred:  issues_transferred(),
+	Issues_unassigned:   issues_unassigned(),
+	Issues_unlabeled:    issues_unlabeled(),
+	Issues_unlocked:     issues_unlocked(),
+	Issues_unpinned:     issues_unpinned(),
 
 	Label:         label(),
 	Lable_created: lable_created(),
@@ -251,6 +262,17 @@ type githubEventSets struct {
 	Issues_deleted      probot.WebhookEvent
 	Issues_demilestoned probot.WebhookEvent
 	Issues_edited       probot.WebhookEvent
+	Issues_labeled      probot.WebhookEvent
+	Issues_locked       probot.WebhookEvent
+	Issues_milestoned   probot.WebhookEvent
+	Issues_opened       probot.WebhookEvent
+	Issues_pinned       probot.WebhookEvent
+	Issues_reopened     probot.WebhookEvent
+	Issues_transferred  probot.WebhookEvent
+	Issues_unassigned   probot.WebhookEvent
+	Issues_unlabeled    probot.WebhookEvent
+	Issues_unlocked     probot.WebhookEvent
+	Issues_unpinned     probot.WebhookEvent
 
 	Label         probot.WebhookEvent
 	Lable_created probot.WebhookEvent

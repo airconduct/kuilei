@@ -8,7 +8,7 @@ import (
 
 // "pull_request"
 
-type PullRequestContext probot.ProbotContext[probot.GithubClient, github.PullRequestEvent]
+type PullRequestContext = probot.ProbotContext[probot.GithubClient, github.PullRequestEvent]
 
 func PullRequestHandler(fn func(ctx PullRequestContext)) probot.EventHandlerFunc[probot.GithubClient, github.PullRequestEvent] {
 	return func(ctx probot.ProbotContext[probot.GithubClient, github.PullRequestEvent]) {

@@ -8,7 +8,7 @@ import (
 
 // "create"
 
-type CreateContext probot.ProbotContext[probot.GithubClient, github.CreateEvent]
+type CreateContext = probot.ProbotContext[probot.GithubClient, github.CreateEvent]
 
 func CreateHandler(fn func(ctx CreateContext)) probot.EventHandlerFunc[probot.GithubClient, github.CreateEvent] {
 	return func(ctx probot.ProbotContext[probot.GithubClient, github.CreateEvent]) {

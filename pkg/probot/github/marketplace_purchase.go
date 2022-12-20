@@ -8,7 +8,7 @@ import (
 
 // "marketplace_purchase"
 
-type MarketplacePurchaseContext probot.ProbotContext[probot.GithubClient, github.MarketplacePurchaseEvent]
+type MarketplacePurchaseContext = probot.ProbotContext[probot.GithubClient, github.MarketplacePurchaseEvent]
 
 func MarketplacePurchaseHandler(fn func(ctx MarketplacePurchaseContext)) probot.EventHandlerFunc[probot.GithubClient, github.MarketplacePurchaseEvent] {
 	return func(ctx probot.ProbotContext[probot.GithubClient, github.MarketplacePurchaseEvent]) {

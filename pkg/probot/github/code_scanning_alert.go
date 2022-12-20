@@ -8,7 +8,7 @@ import (
 
 // "code_scanning_alert"
 
-type CodeScanningAlertContext probot.ProbotContext[probot.GithubClient, github.CodeScanningAlertEvent]
+type CodeScanningAlertContext = probot.ProbotContext[probot.GithubClient, github.CodeScanningAlertEvent]
 
 func CodeScanningAlertHandler(fn func(ctx CodeScanningAlertContext)) probot.EventHandlerFunc[probot.GithubClient, github.CodeScanningAlertEvent] {
 	return func(ctx probot.ProbotContext[probot.GithubClient, github.CodeScanningAlertEvent]) {

@@ -8,7 +8,7 @@ import (
 
 // "label"
 
-type LabelContext probot.ProbotContext[probot.GithubClient, github.LabelEvent]
+type LabelContext = probot.ProbotContext[probot.GithubClient, github.LabelEvent]
 
 func LabelHandler(fn func(ctx LabelContext)) probot.EventHandlerFunc[probot.GithubClient, github.LabelEvent] {
 	return func(ctx probot.ProbotContext[probot.GithubClient, github.LabelEvent]) {

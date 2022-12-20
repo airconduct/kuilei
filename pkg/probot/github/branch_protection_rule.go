@@ -6,7 +6,7 @@ import (
 	"github.com/airconduct/kuilei/pkg/probot"
 )
 
-type BranchProtectionRuleContext probot.ProbotContext[probot.GithubClient, github.BranchProtectionRuleEvent]
+type BranchProtectionRuleContext = probot.ProbotContext[probot.GithubClient, github.BranchProtectionRuleEvent]
 
 func BranchProtectionRuleHandler(fn func(ctx BranchProtectionRuleContext)) probot.EventHandlerFunc[probot.GithubClient, github.BranchProtectionRuleEvent] {
 	return func(ctx probot.ProbotContext[probot.GithubClient, github.BranchProtectionRuleEvent]) {

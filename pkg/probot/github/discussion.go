@@ -8,7 +8,7 @@ import (
 
 // "discussion"
 
-type DiscussionContext probot.ProbotContext[probot.GithubClient, github.DiscussionEvent]
+type DiscussionContext = probot.ProbotContext[probot.GithubClient, github.DiscussionEvent]
 
 func DiscussionHandler(fn func(ctx DiscussionContext)) probot.EventHandlerFunc[probot.GithubClient, github.DiscussionEvent] {
 	return func(ctx probot.ProbotContext[probot.GithubClient, github.DiscussionEvent]) {

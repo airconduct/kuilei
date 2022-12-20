@@ -8,7 +8,7 @@ import (
 
 // "gollum"
 
-type GollumContext probot.ProbotContext[probot.GithubClient, github.GollumEvent]
+type GollumContext = probot.ProbotContext[probot.GithubClient, github.GollumEvent]
 
 func GollumHandler(fn func(ctx GollumContext)) probot.EventHandlerFunc[probot.GithubClient, github.GollumEvent] {
 	return func(ctx probot.ProbotContext[probot.GithubClient, github.GollumEvent]) {

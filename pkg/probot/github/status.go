@@ -8,7 +8,7 @@ import (
 
 // "status"
 
-type StatusContext probot.ProbotContext[probot.GithubClient, github.StatusEvent]
+type StatusContext = probot.ProbotContext[probot.GithubClient, github.StatusEvent]
 
 func StatusHandler(fn func(ctx StatusContext)) probot.EventHandlerFunc[probot.GithubClient, github.StatusEvent] {
 	return func(ctx probot.ProbotContext[probot.GithubClient, github.StatusEvent]) {

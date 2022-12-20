@@ -8,7 +8,7 @@ import (
 
 // "github_app_authorization"
 
-type GithubAppAuthorizationContext probot.ProbotContext[probot.GithubClient, github.GitHubAppAuthorizationEvent]
+type GithubAppAuthorizationContext = probot.ProbotContext[probot.GithubClient, github.GitHubAppAuthorizationEvent]
 
 func GithubAppAuthorizationHandler(fn func(ctx GithubAppAuthorizationContext)) probot.EventHandlerFunc[probot.GithubClient, github.GitHubAppAuthorizationEvent] {
 	return func(ctx probot.ProbotContext[probot.GithubClient, github.GitHubAppAuthorizationEvent]) {

@@ -59,8 +59,8 @@ func (app *githubApp) AddFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&app.uploadURL, "github.upload-url", "https://upload.github.com", "github base URL")
 }
 
-func (app *githubApp) On(events ...WebhookEvent) handleWith {
-	return handleWithFunc(func(h Handler) error {
+func (app *githubApp) On(events ...WebhookEvent) handlerLoader {
+	return handlerLoadFunc(func(h Handler) error {
 		for _, event := range events {
 			key := event.Type()
 			if action := event.Action(); action != "" {
@@ -84,6 +84,7 @@ func (app *githubApp) Run(ctx context.Context) error {
 	mux.HandleFunc(app.serverOpts.Path, app.handle)
 	server := &http.Server{Addr: fmt.Sprintf("%s:%d", app.serverOpts.Address, app.serverOpts.Port), Handler: mux}
 	server.RegisterOnShutdown(app.shutdown)
+	app.logger.Info("Kuilei hook is serving", "addr", server.Addr)
 	return server.ListenAndServe()
 }
 
@@ -92,13 +93,13 @@ func (app *githubApp) shutdown() {}
 func (app *githubApp) initialize() error {
 	rawToken, err := os.ReadFile(app.hmacTokenFile)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to read hmac token file, %w", err)
 	}
 	app.hmacToken = rawToken
 
 	rawPrivateKey, err := os.ReadFile(app.privateKeyFile)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to read private key file, %w", err)
 	}
 	app.privateKey = rawPrivateKey
 	return nil
@@ -132,227 +133,666 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 		app.handleError(w, err, http.StatusBadRequest)
 		return
 	}
+	app.logger.Info("Handle event", "event", event)
 
-	handlerKey = event
 	switch event {
 	case "branch_protection_rule":
-		payload := new(github.BranchProtectionRuleEvent)
-		err = parseWebHook(event, rawPayload, payload)
-		if err != nil {
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.BranchProtectionRuleEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
 			app.handleError(w, err, http.StatusBadRequest)
 			return
 		}
-		cli, err := app.getClient(*payload.Installation.ID)
-		if err != nil {
-			app.handleError(w, err, http.StatusBadRequest)
-			return
-		}
-		protoCtx := newProbotContext(ctx, app.logger, cli, payload)
-		if action := protoCtx.Payload().Action; action != nil && *action != "" {
-			handlerKey = handlerKey + "." + *action
-		}
-		handler := app.handlers[handlerKey].(EventHandlerFunc[GithubClient, github.BranchProtectionRuleEvent])
-		handler(protoCtx)
 	case "check_run":
-		payload := new(github.CheckRunEvent)
-		err = parseWebHook(event, rawPayload, payload)
-		if err != nil {
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.CheckRunEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
 			app.handleError(w, err, http.StatusBadRequest)
 			return
 		}
-		cli, err := app.getClient(*payload.Installation.ID)
-		if err != nil {
-			app.handleError(w, err, http.StatusBadRequest)
-			return
-		}
-		protoCtx := newProbotContext(ctx, app.logger, cli, payload)
-		if action := protoCtx.Payload().Action; action != nil && *action != "" {
-			handlerKey = handlerKey + "." + *action
-		}
-		handler := app.handlers[handlerKey].(EventHandlerFunc[GithubClient, github.CheckRunEvent])
-		handler(protoCtx)
 	case "check_suite":
-		payload := new(github.CheckSuiteEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.CheckSuiteEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "code_scanning_alert":
-		payload := new(github.CodeScanningAlertEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		// TODO: CodeScanningAlertEvent do not contain Installation
+		//
+		// 	payload := new(github.CodeScanningAlertEvent)
+		//	payload.Installation (wrong)
 	case "commit_comment":
-		payload := new(github.CommitCommentEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.CommitCommentEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "content_reference":
-		payload := new(github.ContentReferenceEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.ContentReferenceEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "create":
-		payload := new(github.CreateEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.CreateEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "delete":
-		payload := new(github.DeleteEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.DeleteEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "deploy_key":
-		payload := new(github.DeployKeyEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.DeployKeyEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "deployment":
-		payload := new(github.DeploymentEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.DeploymentEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "deployment_status":
-		payload := new(github.DeploymentStatusEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.DeploymentStatusEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "discussion":
-		payload := new(github.DiscussionEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.DiscussionEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "fork":
-		payload := new(github.ForkEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.ForkEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "github_app_authorization":
-		payload := new(github.GitHubAppAuthorizationEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.GitHubAppAuthorizationEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "gollum":
-		payload := new(github.GollumEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.GollumEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "installation":
-		payload := new(github.InstallationEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.InstallationEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "installation_repositories":
-		payload := new(github.InstallationRepositoriesEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.InstallationRepositoriesEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "issue_comment":
-		payload := new(github.IssueCommentEvent)
-		err = parseWebHook(event, rawPayload, payload)
-		if err != nil {
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.IssueCommentEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
 			app.handleError(w, err, http.StatusBadRequest)
 			return
 		}
-		cli, err := app.getClient(*payload.Installation.ID)
-		if err != nil {
-			app.handleError(w, err, http.StatusBadRequest)
-			return
-		}
-		protoCtx := newProbotContext(ctx, app.logger, cli, payload)
-		if action := protoCtx.Payload().Action; action != nil && *action != "" {
-			handlerKey = handlerKey + "." + *action
-		}
-		handler := app.handlers[handlerKey].(EventHandlerFunc[GithubClient, github.IssueCommentEvent])
-		handler(protoCtx)
 	case "issues":
-		payload := new(github.IssueEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.IssuesEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "label":
-		payload := new(github.LabelEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.LabelEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "marketplace_purchase":
-		payload := new(github.MarketplacePurchaseEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.MarketplacePurchaseEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "member":
-		payload := new(github.MemberEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.MemberEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "membership":
-		payload := new(github.MembershipEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.MembershipEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "merge_group":
-		payload := new(github.MergeGroupEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.MergeGroupEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "meta":
-		payload := new(github.MetaEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.MetaEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "milestone":
-		payload := new(github.MilestoneEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.MilestoneEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "organization":
-		payload := new(github.OrganizationEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.OrganizationEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "org_block":
-		payload := new(github.OrgBlockEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.OrgBlockEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "package":
-		payload := new(github.PackageEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.PackageEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "page_build":
-		payload := new(github.PageBuildEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.PageBuildEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "ping":
-		payload := new(github.PingEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.PingEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "project":
-		payload := new(github.ProjectEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.ProjectEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "project_card":
-		payload := new(github.ProjectCardEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.ProjectCardEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "project_column":
-		payload := new(github.ProjectColumnEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.ProjectColumnEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "public":
-		payload := new(github.PublicEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.PublicEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "pull_request":
-		payload := new(github.PullRequestEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.PullRequestEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "pull_request_review":
-		payload := new(github.PullRequestReviewEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.PullRequestReviewEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "pull_request_review_comment":
-		payload := new(github.PullRequestReviewCommentEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.PullRequestReviewCommentEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "pull_request_review_thread":
-		payload := new(github.PullRequestReviewThreadEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.PullRequestReviewThreadEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "pull_request_target":
-		payload := new(github.PullRequestTargetEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.PullRequestTargetEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "push":
-		payload := new(github.PushEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.PushEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "repository":
-		payload := new(github.RepositoryEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.RepositoryEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "repository_dispatch":
-		payload := new(github.RepositoryDispatchEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.RepositoryDispatchEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "repository_import":
-		payload := new(github.RepositoryImportEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		// TODO
 	case "repository_vulnerability_alert":
-		payload := new(github.RepositoryVulnerabilityAlertEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.RepositoryVulnerabilityAlertEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "release":
-		payload := new(github.ReleaseEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.ReleaseEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "secret_scanning_alert":
-		payload := new(github.SecretScanningAlertEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.SecretScanningAlertEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "star":
-		payload := new(github.StarEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.StarEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "status":
-		payload := new(github.StatusEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.StatusEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "team":
-		payload := new(github.TeamEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.TeamEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "team_add":
-		payload := new(github.TeamAddEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.TeamAddEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "user":
-		payload := new(github.UserEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.UserEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "watch":
-		payload := new(github.WatchEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.WatchEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "workflow_dispatch":
-		payload := new(github.WorkflowDispatchEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.WorkflowDispatchEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "workflow_job":
-		payload := new(github.WorkflowJobEvent)
-		err = parseWebHook(event, rawPayload, payload)
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.WorkflowJobEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
 	case "workflow_run":
-		payload := new(github.WorkflowRunEvent)
-		err = parseWebHook(event, rawPayload, payload)
-	}
-
-	if err != nil {
-		app.handleError(w, err, http.StatusBadRequest)
-		return
+		if err := genericHandleFunc(
+			ctx, app.logger, event, rawPayload,
+			func(payload *github.WorkflowRunEvent) (*github.Client, error) {
+				handlerKey = getHandlerKey(event, payload)
+				return app.getClient(payload.GetInstallation().GetID())
+			},
+			app.handlers,
+		); err != nil {
+			app.handleError(w, err, http.StatusBadRequest)
+			return
+		}
+	default:
+		app.handleError(w, fmt.Errorf("event %s not found", event), http.StatusNotFound)
 	}
 }
 

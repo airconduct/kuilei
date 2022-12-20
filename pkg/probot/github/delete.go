@@ -8,7 +8,7 @@ import (
 
 // "delete"
 
-type DeleteContext probot.ProbotContext[probot.GithubClient, github.DeleteEvent]
+type DeleteContext = probot.ProbotContext[probot.GithubClient, github.DeleteEvent]
 
 func DeleteHandler(fn func(ctx DeleteContext)) probot.EventHandlerFunc[probot.GithubClient, github.DeleteEvent] {
 	return func(ctx probot.ProbotContext[probot.GithubClient, github.DeleteEvent]) {
