@@ -15,4 +15,3 @@ kind-setup:
 		--create-namespace \
 		--version v1.10.1 \
 		--set installCRDs=true
-# smee -u https://smee.io/yBh0JX8s0x6RsJGp -t http://localhost:8888/hook

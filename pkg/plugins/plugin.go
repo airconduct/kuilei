@@ -26,7 +26,7 @@ func RegisterGitCommentPlugin(name string, builder GitCommentPluginBuilder) {
 
 func GetGitCommentPlugin(name string, clientSets ClientSets, arg ...string) GitCommentPlugin {
 	if builder, ok := gitCommentPlugins[name]; ok {
-		return builder(clientSets)
+		return builder(clientSets, arg...)
 	}
 	return nil
 }

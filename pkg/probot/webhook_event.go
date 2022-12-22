@@ -30,7 +30,7 @@ func genericHandleFunc[GT GitClientType, PT gitEventType](
 	} else {
 		return nil
 	}
-	handlerVal(newProbotContext(ctx, logger, client, payload))
+	handlerVal(newProbotContext(ctx, logger.WithName(handlerKey), client, payload))
 	return nil
 }
 

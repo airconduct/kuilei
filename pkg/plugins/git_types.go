@@ -86,6 +86,22 @@ type GitIssue struct {
 	User      GitUser
 }
 
+type GitPullRequest struct {
+	ID        int
+	Number    int
+	State     string
+	Locked    bool
+	Title     string
+	Body      string
+	Labels    []Label
+	Assignees []GitUser
+	User      GitUser
+}
+
+type GitCommitFile struct {
+	Path string
+}
+
 type Label struct {
 	ID    int64
 	Name  string

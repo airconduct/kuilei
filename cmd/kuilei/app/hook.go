@@ -17,7 +17,8 @@ func NewHook() *cobra.Command {
 	opts := &hookOptions{
 		githubApp: probot.NewGithubAPP(),
 
-		pluginConfigCache: pluginhelpers.NewPluginConfigCache(),
+		pluginConfigCache: pluginhelpers.NewConfigCache[plugins.Configuration](),
+		ownersConfigCache: pluginhelpers.NewConfigNearestCache[plugins.OwnersConfiguration](),
 	}
 
 	cmd := &cobra.Command{
@@ -39,12 +40,15 @@ type hookOptions struct {
 	githubApp probot.App[probot.GithubClient]
 
 	configPath        string
-	pluginConfigCache *pluginhelpers.PluginConfigCache
+	ownersFile        string
+	pluginConfigCache pluginhelpers.ConfigCache[plugins.Configuration]
+	ownersConfigCache pluginhelpers.ConfigCache[plugins.OwnersConfiguration]
 }
 
 func (opts *hookOptions) AddFlags(flags *pflag.FlagSet) {
 	opts.githubApp.AddFlags(flags)
 	flags.StringVar(&opts.configPath, "config-path", ".github/kuilei.yml", "config path for kuilei App in git repo")
+	flags.StringVar(&opts.ownersFile, "owners-file", "OWNERS", "owners file name")
 }
 
 func (opts *hookOptions) Validate(args []string) error {
@@ -58,10 +62,7 @@ func (opts *hookOptions) Validate(args []string) error {
 			ctx.Must(err)
 
 			for _, p := range cfg.Plugins {
-				plugin := plugins.GetGitCommentPlugin(p.Name, plugins.ClientSets{
-					GitIssueClient:     pluginhelpers.GitIssueClientFromGithub(ctx.Client()),
-					PluginConfigClient: pluginClient,
-				}, p.Args...)
+				plugin := plugins.GetGitCommentPlugin(p.Name, getClientSets(opts, ctx, pluginClient), p.Args...)
 				if err := plugin.Do(ctx, pluginhelpers.GitCommentEventFromGithubIssuesEvent(payload)); err != nil {
 					ctx.Logger().Error(err, "Failed to execute plugin", "name", plugin.Name())
 				}
@@ -77,10 +78,7 @@ func (opts *hookOptions) Validate(args []string) error {
 			ctx.Must(err)
 
 			for _, p := range cfg.Plugins {
-				plugin := plugins.GetGitCommentPlugin(p.Name, plugins.ClientSets{
-					GitIssueClient:     pluginhelpers.GitIssueClientFromGithub(ctx.Client()),
-					PluginConfigClient: pluginClient,
-				}, p.Args...)
+				plugin := plugins.GetGitCommentPlugin(p.Name, getClientSets(opts, ctx, pluginClient), p.Args...)
 				if err := plugin.Do(ctx, pluginhelpers.GitCommentEventFromGithubIssueCommentEvent(payload)); err != nil {
 					ctx.Logger().Error(err, "Failed to execute plugin", "name", plugin.Name())
 				}
@@ -96,10 +94,7 @@ func (opts *hookOptions) Validate(args []string) error {
 			ctx.Must(err)
 
 			for _, p := range cfg.Plugins {
-				plugin := plugins.GetGitCommentPlugin(p.Name, plugins.ClientSets{
-					GitIssueClient:     pluginhelpers.GitIssueClientFromGithub(ctx.Client()),
-					PluginConfigClient: pluginClient,
-				}, p.Args...)
+				plugin := plugins.GetGitCommentPlugin(p.Name, getClientSets(opts, ctx, pluginClient), p.Args...)
 				if err := plugin.Do(ctx, pluginhelpers.GitCommentEventFromGithubPullRequestEvent(payload)); err != nil {
 					ctx.Logger().Error(err, "Failed to execute plugin", "name", plugin.Name())
 				}
@@ -115,10 +110,7 @@ func (opts *hookOptions) Validate(args []string) error {
 			ctx.Must(err)
 
 			for _, p := range cfg.Plugins {
-				plugin := plugins.GetGitCommentPlugin(p.Name, plugins.ClientSets{
-					GitIssueClient:     pluginhelpers.GitIssueClientFromGithub(ctx.Client()),
-					PluginConfigClient: pluginClient,
-				}, p.Args...)
+				plugin := plugins.GetGitCommentPlugin(p.Name, getClientSets(opts, ctx, pluginClient), p.Args...)
 				if err := plugin.Do(ctx, pluginhelpers.GitCommentEventFromGithubPullRequestReviewEvent(payload)); err != nil {
 					ctx.Logger().Error(err, "Failed to execute plugin", "name", plugin.Name())
 				}
@@ -134,23 +126,32 @@ func (opts *hookOptions) Validate(args []string) error {
 			ctx.Must(err)
 
 			for _, p := range cfg.Plugins {
-				plugin := plugins.GetGitCommentPlugin(p.Name, plugins.ClientSets{
-					GitIssueClient:     pluginhelpers.GitIssueClientFromGithub(ctx.Client()),
-					PluginConfigClient: pluginClient,
-				}, p.Args...)
+				plugin := plugins.GetGitCommentPlugin(p.Name, getClientSets(opts, ctx, pluginClient), p.Args...)
 				if err := plugin.Do(ctx, pluginhelpers.GitCommentEventFromGithubPullRequestReviewCommentEvent(payload)); err != nil {
 					ctx.Logger().Error(err, "Failed to execute plugin", "name", plugin.Name())
 				}
 			}
 		}))
 	opts.githubApp.On(github.Event.Push).
-		WithHandler(github.PullRequestHandler(func(ctx github.PullRequestContext) {}))
+		WithHandler(github.PushHandler(func(ctx github.PushContext) {}))
 	opts.githubApp.On(github.Event.Status).
-		WithHandler(github.PullRequestHandler(func(ctx github.PullRequestContext) {}))
+		WithHandler(github.StatusHandler(func(ctx github.StatusContext) {}))
 	return nil
 }
 
 func (opts *hookOptions) Run() error {
 	ctx := signals.SetupSignalContext()
 	return opts.githubApp.Run(ctx)
+}
+
+func getClientSets[PT any](
+	opts *hookOptions,
+	ctx probot.ProbotContext[probot.GithubClient, PT], pluginClient plugins.PluginConfigClient,
+) plugins.ClientSets {
+	return plugins.ClientSets{
+		GitIssueClient:     pluginhelpers.GitIssueClientFromGithub(ctx.Client()),
+		GitPRClient:        pluginhelpers.GitPRClientFromGithub(ctx.Client()),
+		PluginConfigClient: pluginClient,
+		OwnersClient:       pluginhelpers.OwnersClientFromGithub(ctx.Client(), opts.ownersFile, opts.ownersConfigCache),
+	}
 }

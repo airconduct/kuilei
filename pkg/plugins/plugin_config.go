@@ -15,3 +15,11 @@ type PluginConfiguration struct {
 	Name string   `json:"name"`
 	Args []string `json:"args"`
 }
+
+type OwnersConfiguration struct {
+	Owner     string   `json:"owner"`
+	Repo      string   `json:"repo"`
+	Path      string   `json:"path"`
+	Reviewers []string `json:"reviewers"`
+	Approvers []string `json:"approvers"`
+}

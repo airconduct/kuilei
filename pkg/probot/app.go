@@ -81,6 +81,9 @@ func (app *githubApp) Run(ctx context.Context) error {
 	}
 
 	mux := http.NewServeMux()
+	if app.serverOpts.Path == "" {
+		app.serverOpts.Path = "/"
+	}
 	mux.HandleFunc(app.serverOpts.Path, app.handle)
 	server := &http.Server{Addr: fmt.Sprintf("%s:%d", app.serverOpts.Address, app.serverOpts.Port), Handler: mux}
 	server.RegisterOnShutdown(app.shutdown)
