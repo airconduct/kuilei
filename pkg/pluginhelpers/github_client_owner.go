@@ -56,7 +56,6 @@ func (c *githubOwnersClient) syncOwnersFromRemote(owner, repo string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("=============", result.CodeResults)
 	for _, r := range result.CodeResults {
 		file, _, _, err := c.ghClient.Repositories.GetContents(ctx, owner, repo, r.GetPath(), &github.RepositoryContentGetOptions{})
 		if err != nil {

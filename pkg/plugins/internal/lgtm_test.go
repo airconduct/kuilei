@@ -36,6 +36,9 @@ var _ = Describe("Plugin lgtm", func() {
 			func(ctx context.Context, repo plugins.GitRepo, number int) (*plugins.GitPullRequest, error) {
 				return &plugins.GitPullRequest{Number: 11, User: plugins.GitUser{Name: "foouser"}}, nil
 			},
+			func(ctx context.Context, repo plugins.GitRepo, number int, method string) error {
+				return nil
+			},
 		),
 		PluginConfigClient: mock.FakeConfigClient(
 			func(owner, repo string) (plugins.Configuration, error) {

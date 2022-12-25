@@ -18,6 +18,11 @@ type ProbotContext[GT GitClientType, PT gitEventType] interface {
 
 	Payload() *PT
 	Client() *GT
+	GraphQL() GitGraphQLClient
 	Logger() logr.Logger
 	Must(...interface{})
+}
+
+type GitGraphQLClient interface {
+	Query(ctx context.Context, q interface{}, variables map[string]interface{}) error
 }

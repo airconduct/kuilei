@@ -8,12 +8,13 @@ import (
 
 func newProbotContext[GT GitClientType, PT gitEventType](
 	parent context.Context, logger logr.Logger,
-	client *GT, payload *PT,
+	client *GT, graphQLClient GitGraphQLClient, payload *PT,
 ) *probotContext[GT, PT] {
 	return &probotContext[GT, PT]{
 		Context: parent,
 		logger:  logger,
 		client:  client,
+		graphQL: graphQLClient,
 		payload: payload,
 	}
 }
@@ -24,6 +25,7 @@ type probotContext[GT GitClientType, PT gitEventType] struct {
 	logger  logr.Logger
 	client  *GT
 	payload *PT
+	graphQL GitGraphQLClient
 }
 
 func (ctx *probotContext[GT, PT]) Payload() *PT {
@@ -31,6 +33,10 @@ func (ctx *probotContext[GT, PT]) Payload() *PT {
 }
 func (ctx *probotContext[GT, PT]) Client() *GT {
 	return ctx.client
+}
+
+func (ctx *probotContext[GT, PT]) GraphQL() GitGraphQLClient {
+	return ctx.graphQL
 }
 
 func (ctx *probotContext[GT, PT]) Logger() logr.Logger {

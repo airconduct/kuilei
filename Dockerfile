@@ -9,7 +9,8 @@ COPY go.mod go.mod
 COPY go.sum go.sum
 # cache deps before building and copying source so that we don't need to re-download as much
 # and so that source changes don't invalidate our downloaded layer
-RUN go mod download
+ARG GOPROXY
+RUN go env -w GOPROXY=$GOPROXY && go mod download
 
 # Copy the go source
 COPY . .
@@ -23,9 +24,10 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -o kuile
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
-FROM gcr.io/distroless/static:nonroot
+FROM ubuntu:22.04
 WORKDIR /
 COPY --from=builder /workspace/kuilei .
-USER 65532:65532
+RUN apt-get update && apt-get install ca-certificates -y
+RUN update-ca-certificates
 
 ENTRYPOINT ["/kuilei"]

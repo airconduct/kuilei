@@ -1,6 +1,7 @@
 package app
 
 import (
+	"github.com/go-logr/logr"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
@@ -148,10 +149,16 @@ func getClientSets[PT any](
 	opts *hookOptions,
 	ctx probot.ProbotContext[probot.GithubClient, PT], pluginClient plugins.PluginConfigClient,
 ) plugins.ClientSets {
+	logger := ctx.Logger()
 	return plugins.ClientSets{
 		GitIssueClient:     pluginhelpers.GitIssueClientFromGithub(ctx.Client()),
 		GitPRClient:        pluginhelpers.GitPRClientFromGithub(ctx.Client()),
 		PluginConfigClient: pluginClient,
 		OwnersClient:       pluginhelpers.OwnersClientFromGithub(ctx.Client(), opts.ownersFile, opts.ownersConfigCache),
+		GitRepoClient:      pluginhelpers.GitRepoClientFromGithub(ctx.Client()),
+		GitSearchClient:    pluginhelpers.GitSearchClientFromGithub(ctx.GraphQL()),
+		LoggerClient: pluginhelpers.MakeLoggerClient(func() logr.Logger {
+			return logger
+		}),
 	}
 }

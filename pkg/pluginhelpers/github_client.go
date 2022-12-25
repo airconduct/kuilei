@@ -2,6 +2,7 @@ package pluginhelpers
 
 import (
 	"context"
+	"strings"
 
 	"github.com/airconduct/kuilei/pkg/plugins"
 	"github.com/airconduct/kuilei/pkg/probot"
@@ -16,13 +17,17 @@ func GitPRClientFromGithub(gh *probot.GithubClient) plugins.GitPRClient {
 	return &githubClientWrapper{ghClient: gh}
 }
 
+func GitRepoClientFromGithub(gh *probot.GithubClient) plugins.GitRepoClient {
+	return &githubClientWrapper{ghClient: gh}
+}
+
 type githubClientWrapper struct {
 	ghClient *probot.GithubClient
 }
 
 func (c *githubClientWrapper) CreateIssueComment(ctx context.Context, repo plugins.GitRepo, issue plugins.GitIssue, in plugins.GitIssueComment) error {
 	_, _, err := c.ghClient.Issues.CreateComment(ctx, repo.Owner.Name, repo.Name, issue.Number, &github.IssueComment{
-		Body: &in.Body,
+		Body: github.String(in.Body),
 	})
 	return err
 }
@@ -69,4 +74,23 @@ func (c *githubClientWrapper) GetPR(ctx context.Context, repo plugins.GitRepo, n
 		Assignees: GitUsersFromGithub(pr.Assignees),
 		User:      GitUserFromGithub(pr.User),
 	}, nil
+}
+
+func (c *githubClientWrapper) MergePR(ctx context.Context, repo plugins.GitRepo, number int, method string) error {
+	_, _, err := c.ghClient.PullRequests.Merge(ctx, repo.Owner.Name, repo.Name, number, "", &github.PullRequestOptions{
+		MergeMethod: method,
+	})
+	return err
+}
+
+func (c *githubClientWrapper) CreateStatus(
+	ctx context.Context, repo plugins.GitRepo, ref string, status plugins.GitCommitStatus,
+) error {
+	_, _, err := c.ghClient.Repositories.CreateStatus(ctx, repo.Owner.Name, repo.Name, ref, &github.RepoStatus{
+		State:       github.String(strings.ToLower(status.State)),
+		Context:     github.String(status.Context),
+		Description: github.String(status.Description),
+		TargetURL:   github.String(status.TargetURL),
+	})
+	return err
 }

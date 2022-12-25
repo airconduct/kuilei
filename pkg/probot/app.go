@@ -5,27 +5,35 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"sync"
 
 	"github.com/bradleyfalzon/ghinstallation"
 	"github.com/google/go-github/v48/github"
+	"github.com/shurcooL/githubv4"
 	"github.com/spf13/pflag"
 )
 
 func NewGithubAPP() App[GithubClient] {
 	return &githubApp{
-		handlers: make(map[string]Handler),
-		clients:  make(map[int64]*github.Client),
+		handlers:       make(map[string]Handler),
+		clients:        make(map[int64]*github.Client),
+		graphqlClients: make(map[int64]*githubv4.Client),
 	}
 }
 
 type githubApp struct {
 	handlers map[string]Handler
 	clients  map[int64]*github.Client
+	cliMutex sync.RWMutex
+
+	graphqlClients map[int64]*githubv4.Client
+	graphqlMutex   sync.RWMutex
 
 	appID          int64
 	privateKeyFile string
 	hmacTokenFile  string
 	baseURL        string
+	graphqlURL     string
 	uploadURL      string
 	serverOpts     ServerOptions
 
@@ -56,6 +64,7 @@ func (app *githubApp) AddFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&app.privateKeyFile, "github.private-key-file", "", "github App private-key file")
 	flags.StringVar(&app.hmacTokenFile, "github.hmac-token-file", "", "github App hmac token file")
 	flags.StringVar(&app.baseURL, "github.base-url", "https://api.github.com", "github base URL")
+	flags.StringVar(&app.graphqlURL, "github.graphql-url", "https://api.github.com/graphql", "github graphql URL")
 	flags.StringVar(&app.uploadURL, "github.upload-url", "https://upload.github.com", "github base URL")
 }
 
@@ -142,7 +151,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "branch_protection_rule":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.BranchProtectionRuleEvent) (*github.Client, error) {
+			func(payload *github.BranchProtectionRuleEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -154,7 +163,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "check_run":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.CheckRunEvent) (*github.Client, error) {
+			func(payload *github.CheckRunEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -166,7 +175,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "check_suite":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.CheckSuiteEvent) (*github.Client, error) {
+			func(payload *github.CheckSuiteEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -183,7 +192,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "commit_comment":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.CommitCommentEvent) (*github.Client, error) {
+			func(payload *github.CommitCommentEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -195,7 +204,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "content_reference":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.ContentReferenceEvent) (*github.Client, error) {
+			func(payload *github.ContentReferenceEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -207,7 +216,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "create":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.CreateEvent) (*github.Client, error) {
+			func(payload *github.CreateEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -219,7 +228,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "delete":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.DeleteEvent) (*github.Client, error) {
+			func(payload *github.DeleteEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -231,7 +240,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "deploy_key":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.DeployKeyEvent) (*github.Client, error) {
+			func(payload *github.DeployKeyEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -243,7 +252,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "deployment":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.DeploymentEvent) (*github.Client, error) {
+			func(payload *github.DeploymentEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -255,7 +264,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "deployment_status":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.DeploymentStatusEvent) (*github.Client, error) {
+			func(payload *github.DeploymentStatusEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -267,7 +276,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "discussion":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.DiscussionEvent) (*github.Client, error) {
+			func(payload *github.DiscussionEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -279,7 +288,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "fork":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.ForkEvent) (*github.Client, error) {
+			func(payload *github.ForkEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -291,7 +300,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "github_app_authorization":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.GitHubAppAuthorizationEvent) (*github.Client, error) {
+			func(payload *github.GitHubAppAuthorizationEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -303,7 +312,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "gollum":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.GollumEvent) (*github.Client, error) {
+			func(payload *github.GollumEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -315,7 +324,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "installation":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.InstallationEvent) (*github.Client, error) {
+			func(payload *github.InstallationEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -327,7 +336,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "installation_repositories":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.InstallationRepositoriesEvent) (*github.Client, error) {
+			func(payload *github.InstallationRepositoriesEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -339,7 +348,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "issue_comment":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.IssueCommentEvent) (*github.Client, error) {
+			func(payload *github.IssueCommentEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -351,7 +360,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "issues":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.IssuesEvent) (*github.Client, error) {
+			func(payload *github.IssuesEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -363,7 +372,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "label":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.LabelEvent) (*github.Client, error) {
+			func(payload *github.LabelEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -375,7 +384,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "marketplace_purchase":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.MarketplacePurchaseEvent) (*github.Client, error) {
+			func(payload *github.MarketplacePurchaseEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -387,7 +396,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "member":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.MemberEvent) (*github.Client, error) {
+			func(payload *github.MemberEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -399,7 +408,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "membership":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.MembershipEvent) (*github.Client, error) {
+			func(payload *github.MembershipEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -411,7 +420,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "merge_group":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.MergeGroupEvent) (*github.Client, error) {
+			func(payload *github.MergeGroupEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -423,7 +432,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "meta":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.MetaEvent) (*github.Client, error) {
+			func(payload *github.MetaEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -435,7 +444,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "milestone":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.MilestoneEvent) (*github.Client, error) {
+			func(payload *github.MilestoneEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -447,7 +456,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "organization":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.OrganizationEvent) (*github.Client, error) {
+			func(payload *github.OrganizationEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -459,7 +468,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "org_block":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.OrgBlockEvent) (*github.Client, error) {
+			func(payload *github.OrgBlockEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -471,7 +480,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "package":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.PackageEvent) (*github.Client, error) {
+			func(payload *github.PackageEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -483,7 +492,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "page_build":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.PageBuildEvent) (*github.Client, error) {
+			func(payload *github.PageBuildEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -495,7 +504,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "ping":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.PingEvent) (*github.Client, error) {
+			func(payload *github.PingEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -507,7 +516,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "project":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.ProjectEvent) (*github.Client, error) {
+			func(payload *github.ProjectEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -519,7 +528,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "project_card":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.ProjectCardEvent) (*github.Client, error) {
+			func(payload *github.ProjectCardEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -531,7 +540,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "project_column":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.ProjectColumnEvent) (*github.Client, error) {
+			func(payload *github.ProjectColumnEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -543,7 +552,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "public":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.PublicEvent) (*github.Client, error) {
+			func(payload *github.PublicEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -555,7 +564,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "pull_request":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.PullRequestEvent) (*github.Client, error) {
+			func(payload *github.PullRequestEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -567,7 +576,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "pull_request_review":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.PullRequestReviewEvent) (*github.Client, error) {
+			func(payload *github.PullRequestReviewEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -579,7 +588,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "pull_request_review_comment":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.PullRequestReviewCommentEvent) (*github.Client, error) {
+			func(payload *github.PullRequestReviewCommentEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -591,7 +600,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "pull_request_review_thread":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.PullRequestReviewThreadEvent) (*github.Client, error) {
+			func(payload *github.PullRequestReviewThreadEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -603,7 +612,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "pull_request_target":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.PullRequestTargetEvent) (*github.Client, error) {
+			func(payload *github.PullRequestTargetEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -615,7 +624,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "push":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.PushEvent) (*github.Client, error) {
+			func(payload *github.PushEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -627,7 +636,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "repository":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.RepositoryEvent) (*github.Client, error) {
+			func(payload *github.RepositoryEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -639,7 +648,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "repository_dispatch":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.RepositoryDispatchEvent) (*github.Client, error) {
+			func(payload *github.RepositoryDispatchEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -653,7 +662,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "repository_vulnerability_alert":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.RepositoryVulnerabilityAlertEvent) (*github.Client, error) {
+			func(payload *github.RepositoryVulnerabilityAlertEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -665,7 +674,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "release":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.ReleaseEvent) (*github.Client, error) {
+			func(payload *github.ReleaseEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -677,7 +686,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "secret_scanning_alert":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.SecretScanningAlertEvent) (*github.Client, error) {
+			func(payload *github.SecretScanningAlertEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -689,7 +698,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "star":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.StarEvent) (*github.Client, error) {
+			func(payload *github.StarEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -701,7 +710,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "status":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.StatusEvent) (*github.Client, error) {
+			func(payload *github.StatusEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -713,7 +722,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "team":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.TeamEvent) (*github.Client, error) {
+			func(payload *github.TeamEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -725,7 +734,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "team_add":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.TeamAddEvent) (*github.Client, error) {
+			func(payload *github.TeamAddEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -737,7 +746,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "user":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.UserEvent) (*github.Client, error) {
+			func(payload *github.UserEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -749,7 +758,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "watch":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.WatchEvent) (*github.Client, error) {
+			func(payload *github.WatchEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -761,7 +770,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "workflow_dispatch":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.WorkflowDispatchEvent) (*github.Client, error) {
+			func(payload *github.WorkflowDispatchEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -773,7 +782,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "workflow_job":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.WorkflowJobEvent) (*github.Client, error) {
+			func(payload *github.WorkflowJobEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -785,7 +794,7 @@ func (app *githubApp) handle(w http.ResponseWriter, r *http.Request) {
 	case "workflow_run":
 		if err := genericHandleFunc(
 			ctx, app.logger, event, rawPayload,
-			func(payload *github.WorkflowRunEvent) (*github.Client, error) {
+			func(payload *github.WorkflowRunEvent) (*github.Client, GitGraphQLClient, error) {
 				handlerKey = getHandlerKey(event, payload)
 				return app.getClient(payload.GetInstallation().GetID())
 			},
@@ -804,8 +813,24 @@ func (app *githubApp) handleError(w http.ResponseWriter, err error, status int) 
 	fmt.Fprint(w, err.Error())
 }
 
-func (app *githubApp) getClient(installID int64) (*github.Client, error) {
-	if cli, ok := app.clients[installID]; ok {
+func (app *githubApp) getClient(installID int64) (*github.Client, GitGraphQLClient, error) {
+	cli, err := app.getGithubClient(installID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	graphql, err := app.getGraphQLClient(installID)
+	if err != nil {
+		return nil, nil, err
+	}
+	return cli, graphql, nil
+}
+
+func (app *githubApp) getGithubClient(installID int64) (*github.Client, error) {
+	app.cliMutex.RLock()
+	cli, ok := app.clients[installID]
+	app.cliMutex.RUnlock()
+	if ok {
 		return cli, nil
 	}
 
@@ -813,10 +838,33 @@ func (app *githubApp) getClient(installID int64) (*github.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	cli, err := github.NewEnterpriseClient(app.baseURL, app.uploadURL, &http.Client{Transport: tr})
+	cli, err = github.NewEnterpriseClient(app.baseURL, app.uploadURL, &http.Client{Transport: tr})
 	if err != nil {
 		return nil, err
 	}
+
+	app.cliMutex.Lock()
 	app.clients[installID] = cli
+	app.cliMutex.Unlock()
+	return cli, nil
+}
+
+func (app *githubApp) getGraphQLClient(installID int64) (GitGraphQLClient, error) {
+	app.graphqlMutex.RLock()
+	cli, ok := app.graphqlClients[installID]
+	app.graphqlMutex.RUnlock()
+	if ok {
+		return cli, nil
+	}
+
+	tr, err := ghinstallation.New(http.DefaultTransport, app.appID, installID, app.privateKey)
+	if err != nil {
+		return nil, err
+	}
+	cli = githubv4.NewEnterpriseClient(app.graphqlURL, &http.Client{Transport: tr})
+
+	app.graphqlMutex.Lock()
+	app.graphqlClients[installID] = cli
+	app.graphqlMutex.Unlock()
 	return cli, nil
 }

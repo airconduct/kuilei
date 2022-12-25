@@ -5,3 +5,7 @@ plugins:
 - name: lgtm
   args:
   - "--allow-author=true"
+- name: approve
+  args:
+  - "--allow-author=true"
+- name: tide

@@ -10,14 +10,14 @@ import (
 func genericHandleFunc[GT GitClientType, PT gitEventType](
 	ctx context.Context, logger logr.Logger,
 	event string, rawPayload []byte,
-	clientGetter func(payload *PT) (*GT, error),
+	clientGetter func(payload *PT) (*GT, GitGraphQLClient, error),
 	handlers map[string]Handler,
 ) error {
 	payload := new(PT)
 	if err := parseWebHook(event, rawPayload, payload); err != nil {
 		return err
 	}
-	client, err := clientGetter(payload)
+	client, graphQL, err := clientGetter(payload)
 	if err != nil {
 		return err
 	}
@@ -30,7 +30,7 @@ func genericHandleFunc[GT GitClientType, PT gitEventType](
 	} else {
 		return nil
 	}
-	handlerVal(newProbotContext(ctx, logger.WithName(handlerKey), client, payload))
+	handlerVal(newProbotContext(ctx, logger.WithName(handlerKey), client, graphQL, payload))
 	return nil
 }
 
