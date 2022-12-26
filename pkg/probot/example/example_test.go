@@ -1,4 +1,4 @@
-package github_test
+package main
 
 import (
 	"context"
@@ -47,7 +47,6 @@ var _ = Describe("Test Probot Example", func() {
 			Expect(app.Run(ctx)).Should(Succeed())
 		}()
 
-		time.Sleep(3 * time.Second)
 		Eventually(func(g Gomega) {
 			g.Expect(mock.Send(
 				app.(mock.AppMock[probot.GithubClient]),
@@ -62,6 +61,6 @@ var _ = Describe("Test Probot Example", func() {
 					Issue: &gh.Issue{Number: probot.ToPointer(1)},
 				},
 			)).Should(Succeed())
-		}, time.Second, 3*time.Second).Should(Succeed())
+		}, 5*time.Second, time.Second).Should(Succeed())
 	})
 })

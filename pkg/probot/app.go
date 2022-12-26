@@ -37,6 +37,7 @@ type githubApp struct {
 	uploadURL      string
 	serverOpts     ServerOptions
 
+	dataMutex  sync.RWMutex
 	hmacToken  []byte
 	privateKey []byte
 	loggerOptions
@@ -53,6 +54,8 @@ func (app *githubApp) GetHTTPHandler() http.Handler {
 }
 
 func (app *githubApp) GetSecretToken() []byte {
+	app.dataMutex.RLock()
+	defer app.dataMutex.RUnlock()
 	return app.hmacToken
 }
 
@@ -103,6 +106,8 @@ func (app *githubApp) Run(ctx context.Context) error {
 func (app *githubApp) shutdown() {}
 
 func (app *githubApp) initialize() error {
+	app.dataMutex.Lock()
+	defer app.dataMutex.Unlock()
 	rawToken, err := os.ReadFile(app.hmacTokenFile)
 	if err != nil {
 		return fmt.Errorf("failed to read hmac token file, %w", err)
