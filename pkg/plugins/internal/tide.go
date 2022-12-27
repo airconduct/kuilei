@@ -162,15 +162,18 @@ func (c *tideController) syncRepo(tideCtxVal *atomic.Value) {
 			return
 		}
 		for _, pr := range prs {
+			tideStatus, ok := getTideStatus(pr)
 			state, desc, merge := wantsStateAndDescription(pr, tideCtx.RequiredLabels, tideCtx.MissingLabels)
-			err := tideCtx.RepoClient.CreateStatus(ctx, tideCtx.Repo, pr.Head.Sha, plugins.GitCommitStatus{
-				State:       state,
-				Context:     statusContext,
-				Description: desc,
-			})
-			if err != nil {
-				tideCtx.Log.Error(err, "Failed to create status", "pr", pr.Number)
-				continue
+			if !ok || (tideStatus.State != state || tideStatus.Description != desc) {
+				err := tideCtx.RepoClient.CreateStatus(ctx, tideCtx.Repo, pr.Head.Sha, plugins.GitCommitStatus{
+					State:       state,
+					Context:     statusContext,
+					Description: desc,
+				})
+				if err != nil {
+					tideCtx.Log.Error(err, "Failed to create status", "pr", pr.Number)
+					continue
+				}
 			}
 			if !merge {
 				continue
@@ -180,6 +183,19 @@ func (c *tideController) syncRepo(tideCtxVal *atomic.Value) {
 			}
 		}
 	}, TideSyncInterval)
+}
+
+func getTideStatus(pr plugins.GitPullRequest) (plugins.GitCommitStatus, bool) {
+	for _, commit := range pr.Commits {
+		if commit.Sha == pr.Head.Sha {
+			for _, status := range commit.Statuses {
+				if status.Context == statusContext {
+					return status, true
+				}
+			}
+		}
+	}
+	return plugins.GitCommitStatus{}, false
 }
 
 func wantsStateAndDescription(pr plugins.GitPullRequest, required, missing []string) (state string, desc string, merge bool) {
