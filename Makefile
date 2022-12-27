@@ -4,7 +4,7 @@ build-local:
 test:
 	go test -v --race ./...
 
-VERSION ?= latest
+VERSION ?= $(shell git describe --always)
 IMAGE_REGISTRY ?= airconduct/kuilei
 GOPROXY ?= https://proxy.golang.org,direct
 release:
