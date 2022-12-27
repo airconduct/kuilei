@@ -7,6 +7,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"k8s.io/apimachinery/pkg/util/wait"
 
 	"github.com/airconduct/kuilei/pkg/plugins"
 	"github.com/airconduct/kuilei/pkg/plugins/internal"
@@ -32,6 +33,7 @@ var _ = Describe("Plugin tide", func() {
 				{Sha: "foo"},
 			},
 		}
+		callCreateStatus := false
 
 		tide := plugins.GetGitCommentPlugin("tide", plugins.ClientSets{
 			GitPRClient: mock.FakeGitPRClient(
@@ -53,6 +55,7 @@ var _ = Describe("Plugin tide", func() {
 				"CreateStatus": func(ctx context.Context, repo plugins.GitRepo, ref string, status plugins.GitCommitStatus) error {
 					globalLock.Lock()
 					defer globalLock.Unlock()
+					callCreateStatus = true
 
 					var target *plugins.GitCommitStatus
 					for idx, s := range fakePR.Commits[0].Statuses {
@@ -111,6 +114,18 @@ var _ = Describe("Plugin tide", func() {
 				defer globalLock.RUnlock()
 				g.Expect(fakePR.Commits[0].Statuses[0].State).Should(Equal("SUCCESS"))
 			}, 5*time.Second, time.Second).Should(Succeed())
+		})
+
+		It("Should not create more status", func() {
+			globalLock.Lock()
+			callCreateStatus = false
+			globalLock.Unlock()
+
+			Expect(wait.PollImmediate(time.Second, 5*time.Second, func() (done bool, err error) {
+				globalLock.RLock()
+				defer globalLock.RUnlock()
+				return callCreateStatus == true, nil
+			})).ShouldNot(BeNil())
 		})
 
 		It("Should merge", func() {
