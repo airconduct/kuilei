@@ -4,8 +4,8 @@ import (
 	"context"
 	"strings"
 
+	"github.com/airconduct/go-probot"
 	"github.com/airconduct/kuilei/pkg/plugins"
-	"github.com/airconduct/kuilei/pkg/probot"
 	"github.com/google/go-github/v48/github"
 )
 

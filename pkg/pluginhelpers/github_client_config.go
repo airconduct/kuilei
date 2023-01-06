@@ -7,9 +7,9 @@ import (
 	"github.com/google/go-github/v48/github"
 	"sigs.k8s.io/yaml"
 
+	"github.com/airconduct/go-probot"
 	"github.com/airconduct/kuilei/pkg/pluginhelpers/syncer"
 	"github.com/airconduct/kuilei/pkg/plugins"
-	"github.com/airconduct/kuilei/pkg/probot"
 )
 
 func PluginConfigClientFromGithub(gh *probot.GithubClient, configPath string, cache ConfigCache[plugins.Configuration]) plugins.PluginConfigClient {
