@@ -9,3 +9,4 @@ plugins:
   args:
   - "--allow-author=true"
 - name: tide
+- name: help
