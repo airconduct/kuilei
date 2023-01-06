@@ -5,8 +5,8 @@ import (
 
 	"github.com/shurcooL/githubv4"
 
+	"github.com/airconduct/go-probot"
 	"github.com/airconduct/kuilei/pkg/plugins"
-	"github.com/airconduct/kuilei/pkg/probot"
 )
 
 func GitSearchClientFromGithub(cli probot.GitGraphQLClient) plugins.GitSearchClient {

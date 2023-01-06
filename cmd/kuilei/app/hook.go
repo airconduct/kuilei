@@ -5,10 +5,10 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
+	"github.com/airconduct/go-probot"
+	"github.com/airconduct/go-probot/github"
 	"github.com/airconduct/kuilei/pkg/pluginhelpers"
 	"github.com/airconduct/kuilei/pkg/plugins"
-	"github.com/airconduct/kuilei/pkg/probot"
-	"github.com/airconduct/kuilei/pkg/probot/github"
 	"github.com/airconduct/kuilei/pkg/signals"
 
 	_ "github.com/airconduct/kuilei/pkg/plugins/factory"
