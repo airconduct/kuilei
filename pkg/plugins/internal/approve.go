@@ -17,15 +17,12 @@ var (
 )
 
 func init() {
-	plugins.RegisterGitCommentPlugin("approve", func(cs plugins.ClientSets, args ...string) plugins.GitCommentPlugin {
+	plugins.RegisterGitCommentPlugin("approve", func(cs plugins.ClientSets) plugins.GitCommentPlugin {
 		plugin := &approvePlugin{
 			issueClient: cs.GitIssueClient,
 			prClient:    cs.GitPRClient,
 			ownerClient: cs.OwnersClient,
-			flags:       pflag.NewFlagSet("approve", pflag.ContinueOnError),
 		}
-		plugin.flags.BoolVar(&plugin.allowAuthor, "allow-author", false, "Allow author to add approve")
-		plugin.flags.Parse(args)
 		return plugin
 	})
 }
@@ -35,12 +32,23 @@ type approvePlugin struct {
 	prClient    plugins.GitPRClient
 	ownerClient plugins.OwnersClient
 
-	flags       *pflag.FlagSet
 	allowAuthor bool
 }
 
 func (lp *approvePlugin) Name() string {
 	return "approve"
+}
+
+func (lp *approvePlugin) Description() string {
+	return "Adds or removes the 'approved' label which is typically used to gate merging."
+}
+
+func (lp *approvePlugin) Usage() string {
+	return "/approve [cancel]"
+}
+
+func (lp *approvePlugin) BindFlags(flags *pflag.FlagSet) {
+	flags.BoolVar(&lp.allowAuthor, "allow-author", false, "Whether allow author to add approve")
 }
 
 func (lp *approvePlugin) Do(ctx context.Context, e plugins.GitCommentEvent) error {

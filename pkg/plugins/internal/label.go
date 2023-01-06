@@ -16,13 +16,10 @@ var (
 )
 
 func init() {
-	plugins.RegisterGitCommentPlugin("label", func(cs plugins.ClientSets, args ...string) plugins.GitCommentPlugin {
+	plugins.RegisterGitCommentPlugin("label", func(cs plugins.ClientSets) plugins.GitCommentPlugin {
 		plugin := &labelPlugin{
 			issueClient: cs.GitIssueClient,
-			flags:       pflag.NewFlagSet("label", pflag.ContinueOnError),
 		}
-		plugin.flags.StringSliceVar(&plugin.forbiddenLabels, "forbidden", []string{}, "A group of labels that is forbidden to add")
-		plugin.flags.Parse(args)
 		return plugin
 	})
 }
@@ -30,12 +27,23 @@ func init() {
 type labelPlugin struct {
 	issueClient plugins.GitIssueClient
 
-	flags           *pflag.FlagSet
 	forbiddenLabels []string
 }
 
 func (lp *labelPlugin) Name() string {
 	return "label"
+}
+
+func (lp *labelPlugin) Description() string {
+	return "Applies or removes a label from one of the recognized types of labels."
+}
+
+func (lp *labelPlugin) Usage() string {
+	return "/[remove-]label [name]"
+}
+
+func (lp *labelPlugin) BindFlags(flags *pflag.FlagSet) {
+	flags.StringSliceVar(&lp.forbiddenLabels, "forbidden", []string{}, "A group of labels that is forbidden to add")
 }
 
 func (lp *labelPlugin) Do(ctx context.Context, e plugins.GitCommentEvent) error {

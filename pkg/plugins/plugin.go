@@ -1,20 +1,31 @@
 package plugins
 
-import "context"
+import (
+	"context"
+
+	"github.com/spf13/pflag"
+)
+
+type Plugin interface {
+	Name() string
+	Description() string
+	Usage() string
+	BindFlags(flags *pflag.FlagSet)
+}
 
 // GitComment plugin
-type GitCommentPluginBuilder func(ClientSets, ...string) GitCommentPlugin
+type GitCommentPluginBuilder func(ClientSets) GitCommentPlugin
 
 type GitCommentPlugin interface {
-	Name() string
+	Plugin
 	Do(context.Context, GitCommentEvent) error
 }
 
 // GitPR plugin
-type GitPRPluginBuilder func(ClientSets, ...string) GitPRPlugin
+type GitPRPluginBuilder func(ClientSets) GitPRPlugin
 
 type GitPRPlugin interface {
-	Name() string
+	Plugin
 	Do(context.Context, GitPREvent) error
 }
 
@@ -24,9 +35,13 @@ func RegisterGitCommentPlugin(name string, builder GitCommentPluginBuilder) {
 	gitCommentPlugins[name] = builder
 }
 
-func GetGitCommentPlugin(name string, clientSets ClientSets, arg ...string) GitCommentPlugin {
+func GetGitCommentPlugin(name string, clientSets ClientSets, args ...string) GitCommentPlugin {
 	if builder, ok := gitCommentPlugins[name]; ok {
-		return builder(clientSets, arg...)
+		p := builder(clientSets)
+		flags := pflag.NewFlagSet(p.Name(), pflag.ContinueOnError)
+		p.BindFlags(flags)
+		flags.Parse(args)
+		return p
 	}
 	return nil
 }
@@ -37,9 +52,13 @@ func RegisterGitPRPlugin(name string, builder GitPRPluginBuilder) {
 	gitPRPlugins[name] = builder
 }
 
-func GetGitPRPlugin(name string, clientSets ClientSets, arg ...string) GitPRPlugin {
+func GetGitPRPlugin(name string, clientSets ClientSets, args ...string) GitPRPlugin {
 	if builder, ok := gitPRPlugins[name]; ok {
-		return builder(clientSets, arg...)
+		p := builder(clientSets)
+		flags := pflag.NewFlagSet(p.Name(), pflag.ContinueOnError)
+		p.BindFlags(flags)
+		flags.Parse(args)
+		return p
 	}
 	return nil
 }
