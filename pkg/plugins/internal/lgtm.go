@@ -17,15 +17,12 @@ var (
 )
 
 func init() {
-	plugins.RegisterGitCommentPlugin("lgtm", func(cs plugins.ClientSets, args ...string) plugins.GitCommentPlugin {
+	plugins.RegisterGitCommentPlugin("lgtm", func(cs plugins.ClientSets) plugins.GitCommentPlugin {
 		plugin := &lgtmPlugin{
 			issueClient: cs.GitIssueClient,
 			prClient:    cs.GitPRClient,
 			ownerClient: cs.OwnersClient,
-			flags:       pflag.NewFlagSet("lgtm", pflag.ContinueOnError),
 		}
-		plugin.flags.BoolVar(&plugin.allowAuthor, "allow-author", false, "Allow author to add lgtm")
-		plugin.flags.Parse(args)
 		return plugin
 	})
 }
@@ -35,12 +32,23 @@ type lgtmPlugin struct {
 	prClient    plugins.GitPRClient
 	ownerClient plugins.OwnersClient
 
-	flags       *pflag.FlagSet
 	allowAuthor bool
 }
 
 func (lp *lgtmPlugin) Name() string {
 	return "lgtm"
+}
+
+func (lp *lgtmPlugin) Description() string {
+	return "Adds or removes the 'lgtm' label which is typically used to gate merging."
+}
+
+func (lp *lgtmPlugin) Usage() string {
+	return "/lgtm [cancel]"
+}
+
+func (lp *lgtmPlugin) BindFlags(flags *pflag.FlagSet) {
+	flags.BoolVar(&lp.allowAuthor, "allow-author", false, "Whether allow author to add lgtm")
 }
 
 func (lp *lgtmPlugin) Do(ctx context.Context, e plugins.GitCommentEvent) error {

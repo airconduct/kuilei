@@ -28,38 +28,25 @@ const (
 )
 
 func init() {
-	plugins.RegisterGitCommentPlugin("tide", func(cs plugins.ClientSets, args ...string) plugins.GitCommentPlugin {
+	plugins.RegisterGitCommentPlugin("tide", func(cs plugins.ClientSets) plugins.GitCommentPlugin {
 		plugin := tidePlugin{
 			issueClient:  cs.GitIssueClient,
 			repoClient:   cs.GitRepoClient,
 			prClient:     cs.GitPRClient,
 			searchClient: cs.GitSearchClient,
 			loggerClient: cs.LoggerClient,
-			flags:        pflag.NewFlagSet("tide", pflag.ContinueOnError),
 		}
-		plugin.flags.StringSliceVar(&plugin.required, "required-labels", []string{"lgtm", "approved"}, "")
-		plugin.flags.StringSliceVar(&plugin.missing, "missing-labels", []string{
-			"needs-rebase", "do-not-merge/hold", "do-not-merge/work-in-progress", "do-not-merge/invalid-owners-file",
-		}, "")
-		plugin.flags.Parse(args)
 		return &tideGitCommentPlugin{tidePlugin: plugin}
 	})
 
-	plugins.RegisterGitPRPlugin("tide", func(cs plugins.ClientSets, args ...string) plugins.GitPRPlugin {
+	plugins.RegisterGitPRPlugin("tide", func(cs plugins.ClientSets) plugins.GitPRPlugin {
 		plugin := tidePlugin{
 			issueClient:  cs.GitIssueClient,
 			repoClient:   cs.GitRepoClient,
 			prClient:     cs.GitPRClient,
 			searchClient: cs.GitSearchClient,
 			loggerClient: cs.LoggerClient,
-			flags:        pflag.NewFlagSet("tide", pflag.ContinueOnError),
 		}
-		plugin.flags.StringSliceVar(&plugin.required, "required-labels", []string{"lgtm", "approved"}, "")
-		plugin.flags.StringSliceVar(&plugin.missing, "missing-labels", []string{
-			"needs-rebase", "do-not-merge/hold", "do-not-merge/work-in-progress", "do-not-merge/invalid-owners-file",
-		}, "")
-		plugin.flags.StringVar(&plugin.mergeMethod, "merge-method", "merge", "merge, squash orrebase")
-		plugin.flags.Parse(args)
 		return &tideGitPRPlugin{tidePlugin: plugin}
 	})
 }
@@ -90,11 +77,26 @@ type tidePlugin struct {
 	required    []string
 	missing     []string
 	mergeMethod string
-	flags       *pflag.FlagSet
 }
 
 func (p *tidePlugin) Name() string {
 	return "tide"
+}
+
+func (lp *tidePlugin) Description() string {
+	return "Managing a pool of GitHub PRs that match a given set of criteria. It will automatically retest PRs that meet the criteria (“tide comes in”) and automatically merge them when they have up-to-date passing test results (“tide goes out”)."
+}
+
+func (lp *tidePlugin) Usage() string {
+	return "Add 'tide' plugin in configuration located under [.github/kuilei.yml](/.github/kuilei.yml)"
+}
+
+func (lp *tidePlugin) BindFlags(flags *pflag.FlagSet) {
+	flags.StringSliceVar(&lp.required, "required-labels", []string{"lgtm", "approved"}, "Do not merge prs without required-labels")
+	flags.StringSliceVar(&lp.missing, "missing-labels", []string{
+		"needs-rebase", "do-not-merge/hold", "do-not-merge/work-in-progress", "do-not-merge/invalid-owners-file",
+	}, "Do not merge prs with missing-labels")
+	flags.StringVar(&lp.mergeMethod, "merge-method", "merge", "Merge method: merge | squash | rebase")
 }
 
 func (p *tidePlugin) enableRepo(repo plugins.GitRepo) error {

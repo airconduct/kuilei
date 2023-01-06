@@ -2,11 +2,16 @@ package plugins
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 )
 
 // AboutThisBotWithoutCommands contains the message that explains how to interact with the bot.
 const AboutThisBotWithoutCommands = "Instructions for interacting with me using PR comments are available [here](https://github.com/airconduct/kuilei/blob/main/README.md).  If you have questions or suggestions related to my behavior, please file an issue against the [airconduct/kuilei](https://github.com/airconduct/kuilei) repository."
+
+var (
+	commentRegex = regexp.MustCompile(`(?s)<!--(.*?)-->`)
+)
 
 // FormatResponse nicely formats a response to a generic reason.
 func FormatResponse(to, message, reason string) string {
@@ -34,4 +39,8 @@ func FormatResponseRaw(body, bodyURL, login, reply string) string {
 		quoted = append(quoted, ">"+l)
 	}
 	return FormatResponse(login, reply, fmt.Sprintf(format, bodyURL, strings.Join(quoted, "\n")))
+}
+
+func CleanMarkdownComments(body string) string {
+	return commentRegex.ReplaceAllString(body, "")
 }
