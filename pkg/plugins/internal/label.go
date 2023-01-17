@@ -52,7 +52,7 @@ func (lp *labelPlugin) Do(ctx context.Context, e plugins.GitCommentEvent) error 
 	}
 	forbiddenLabelSets := sets.NewString(lp.forbiddenLabels...)
 
-	bodyClean := commentRegex.ReplaceAllString(e.Body, "")
+	bodyClean := plugins.CleanMarkdownComments(e.Body)
 	customLabelMatches := customLabelRegex.FindAllStringSubmatch(bodyClean, -1)
 	customRemoveLabelMatches := customRemoveLabelRegex.FindAllStringSubmatch(bodyClean, -1)
 	if len(customLabelMatches) == 0 && len(customRemoveLabelMatches) == 0 {

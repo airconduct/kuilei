@@ -56,7 +56,7 @@ func (lp *approvePlugin) Do(ctx context.Context, e plugins.GitCommentEvent) erro
 		return nil
 	}
 	// Check body
-	bodyClean := commentRegex.ReplaceAllString(e.Body, "")
+	bodyClean := plugins.CleanMarkdownComments(e.Body)
 	approveMatch := approveRegex.MatchString(bodyClean)
 	approveCancelMatch := approveCancelRegex.MatchString(bodyClean)
 	if !approveMatch && !approveCancelMatch {
