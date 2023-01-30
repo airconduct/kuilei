@@ -89,7 +89,7 @@ var _ = Describe("Plugin tide", func() {
 				g.Expect(len(fakePR.Commits[0].Statuses)).Should(Equal(1))
 				g.Expect(fakePR.Commits[0].Statuses[0].Context).Should(Equal("tide"))
 				g.Expect(fakePR.Commits[0].Statuses[0].State).Should(Equal("PENDING"))
-				g.Expect(fakePR.Commits[0].Statuses[0].Description).Should(Equal("Not mergeable. Needs lgtm, approved label."))
+				g.Expect(fakePR.Commits[0].Statuses[0].Description).Should(Equal("Not mergeable. Needs approved, lgtm label."))
 			}, 5*time.Second, time.Second).Should(Succeed())
 		})
 		It("Should change desc", func() {
