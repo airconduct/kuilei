@@ -56,7 +56,7 @@ func (lp *lgtmPlugin) Do(ctx context.Context, e plugins.GitCommentEvent) error {
 		return nil
 	}
 	// Check body
-	bodyClean := commentRegex.ReplaceAllString(e.Body, "")
+	bodyClean := plugins.CleanMarkdownComments(e.Body)
 	lgtmMatch := lgtmRegex.MatchString(bodyClean)
 	lgtmCancelMatch := lgtmCancelRegex.MatchString(bodyClean)
 	if !lgtmMatch && !lgtmCancelMatch {

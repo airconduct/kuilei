@@ -209,11 +209,11 @@ func wantsStateAndDescription(pr plugins.GitPullRequest, required, missing []str
 		currentLabels.Insert(label.Name)
 	}
 	if diff := requiredSets.Difference(currentLabels); diff.Len() > 0 {
-		desc := fmt.Sprintf("%s. Needs %s label.", statusNotInPool, strings.Join(diff.UnsortedList(), ", "))
+		desc := fmt.Sprintf("%s. Needs %s label.", statusNotInPool, strings.Join(diff.List(), ", "))
 		return plugins.GitStatusStatePending, desc, false
 	}
 	if intersec := missingSets.Intersection(currentLabels); intersec.Len() > 0 {
-		desc := fmt.Sprintf("%s. Should not have %s label.", statusNotInPool, strings.Join(intersec.UnsortedList(), ", "))
+		desc := fmt.Sprintf("%s. Should not have %s label.", statusNotInPool, strings.Join(intersec.List(), ", "))
 		return plugins.GitStatusStatePending, desc, false
 	}
 
