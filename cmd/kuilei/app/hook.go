@@ -6,7 +6,6 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/airconduct/go-probot"
-	"github.com/airconduct/go-probot/github"
 	"github.com/airconduct/kuilei/pkg/pluginhelpers"
 	"github.com/airconduct/kuilei/pkg/plugins"
 	"github.com/airconduct/kuilei/pkg/signals"
@@ -16,7 +15,7 @@ import (
 
 func NewHook() *cobra.Command {
 	opts := &hookOptions{
-		githubApp: probot.NewGithubAPP(),
+		githubApp: probot.NewGitHubAPP(),
 
 		pluginConfigCache: pluginhelpers.NewConfigCache[plugins.Configuration](),
 		ownersConfigCache: pluginhelpers.NewConfigNearestCache[plugins.OwnersConfiguration](),
@@ -38,7 +37,7 @@ func NewHook() *cobra.Command {
 }
 
 type hookOptions struct {
-	githubApp probot.App[probot.GithubClient]
+	githubApp probot.App[probot.GitHubClient]
 
 	configPath        string
 	ownersFile        string
@@ -53,8 +52,8 @@ func (opts *hookOptions) AddFlags(flags *pflag.FlagSet) {
 }
 
 func (opts *hookOptions) Validate(args []string) error {
-	opts.githubApp.On(github.Event.Issues).
-		WithHandler(github.IssuesHandler(func(ctx github.IssuesContext) {
+	opts.githubApp.On(probot.GitHub.Issues).
+		WithHandler(probot.GitHub.Issues.Handler(func(ctx probot.GitHubIssuesContext) {
 			payload := ctx.Payload()
 			pluginClient := pluginhelpers.PluginConfigClientFromGithub(
 				ctx.Client(), opts.configPath, opts.pluginConfigCache,
@@ -69,8 +68,8 @@ func (opts *hookOptions) Validate(args []string) error {
 				}
 			}
 		}))
-	opts.githubApp.On(github.Event.IssueComment).
-		WithHandler(github.IssueCommentHandler(func(ctx github.IssueCommentContext) {
+	opts.githubApp.On(probot.GitHub.IssueComment).
+		WithHandler(probot.GitHub.IssueComment.Handler(func(ctx probot.GitHubIssueCommentContext) {
 			payload := ctx.Payload()
 			pluginClient := pluginhelpers.PluginConfigClientFromGithub(
 				ctx.Client(), opts.configPath, opts.pluginConfigCache,
@@ -85,8 +84,8 @@ func (opts *hookOptions) Validate(args []string) error {
 				}
 			}
 		}))
-	opts.githubApp.On(github.Event.PullRequest).
-		WithHandler(github.PullRequestHandler(func(ctx github.PullRequestContext) {
+	opts.githubApp.On(probot.GitHub.PullRequest).
+		WithHandler(probot.GitHub.PullRequest.Handler(func(ctx probot.GitHubPullRequestContext) {
 			payload := ctx.Payload()
 			pluginClient := pluginhelpers.PluginConfigClientFromGithub(
 				ctx.Client(), opts.configPath, opts.pluginConfigCache,
@@ -101,8 +100,8 @@ func (opts *hookOptions) Validate(args []string) error {
 				}
 			}
 		}))
-	opts.githubApp.On(github.Event.PullRequestReview).
-		WithHandler(github.PullRequestReviewHandler(func(ctx github.PullRequestReviewContext) {
+	opts.githubApp.On(probot.GitHub.PullRequestReview).
+		WithHandler(probot.GitHub.PullRequestReview.Handler(func(ctx probot.GitHubPullRequestReviewContext) {
 			payload := ctx.Payload()
 			pluginClient := pluginhelpers.PluginConfigClientFromGithub(
 				ctx.Client(), opts.configPath, opts.pluginConfigCache,
@@ -117,8 +116,8 @@ func (opts *hookOptions) Validate(args []string) error {
 				}
 			}
 		}))
-	opts.githubApp.On(github.Event.PullRequestReviewComment).
-		WithHandler(github.PullRequestReviewCommentHandler(func(ctx github.PullRequestReviewCommentContext) {
+	opts.githubApp.On(probot.GitHub.PullRequestReviewComment).
+		WithHandler(probot.GitHub.PullRequestReviewComment.Handler(func(ctx probot.GitHubPullRequestReviewCommentContext) {
 			payload := ctx.Payload()
 			pluginClient := pluginhelpers.PluginConfigClientFromGithub(
 				ctx.Client(), opts.configPath, opts.pluginConfigCache,
@@ -133,10 +132,10 @@ func (opts *hookOptions) Validate(args []string) error {
 				}
 			}
 		}))
-	opts.githubApp.On(github.Event.Push).
-		WithHandler(github.PushHandler(func(ctx github.PushContext) {}))
-	opts.githubApp.On(github.Event.Status).
-		WithHandler(github.StatusHandler(func(ctx github.StatusContext) {}))
+	opts.githubApp.On(probot.GitHub.Push).
+		WithHandler(probot.GitHub.Push.Handler(func(ctx probot.GitHubPushContext) {}))
+	opts.githubApp.On(probot.GitHub.Status).
+		WithHandler(probot.GitHub.Status.Handler(func(ctx probot.GitHubStatusContext) {}))
 	return nil
 }
 
@@ -147,7 +146,7 @@ func (opts *hookOptions) Run() error {
 
 func getClientSets[PT any](
 	opts *hookOptions,
-	ctx probot.ProbotContext[probot.GithubClient, PT], pluginClient plugins.PluginConfigClient,
+	ctx probot.ProbotContext[probot.GitHubClient, PT], pluginClient plugins.PluginConfigClient,
 ) plugins.ClientSets {
 	logger := ctx.Logger()
 	return plugins.ClientSets{

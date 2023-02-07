@@ -9,20 +9,20 @@ import (
 	"github.com/google/go-github/v48/github"
 )
 
-func GitIssueClientFromGithub(gh *probot.GithubClient) plugins.GitIssueClient {
+func GitIssueClientFromGithub(gh *probot.GitHubClient) plugins.GitIssueClient {
 	return &githubClientWrapper{ghClient: gh}
 }
 
-func GitPRClientFromGithub(gh *probot.GithubClient) plugins.GitPRClient {
+func GitPRClientFromGithub(gh *probot.GitHubClient) plugins.GitPRClient {
 	return &githubClientWrapper{ghClient: gh}
 }
 
-func GitRepoClientFromGithub(gh *probot.GithubClient) plugins.GitRepoClient {
+func GitRepoClientFromGithub(gh *probot.GitHubClient) plugins.GitRepoClient {
 	return &githubClientWrapper{ghClient: gh}
 }
 
 type githubClientWrapper struct {
-	ghClient *probot.GithubClient
+	ghClient *probot.GitHubClient
 }
 
 func (c *githubClientWrapper) CreateIssueComment(ctx context.Context, repo plugins.GitRepo, issue plugins.GitIssue, in plugins.GitIssueComment) error {
