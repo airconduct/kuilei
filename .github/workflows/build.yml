@@ -22,9 +22,5 @@ jobs:
         with:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.DOCKERIO_TOKEN }}
-      - name: Docker build
-        run: make release
-      - name: Docker build latest
-        run: VERSION=latest make release
       - name: Docker build versioned
         run: VERSION=${{ github.ref_name }} make release
