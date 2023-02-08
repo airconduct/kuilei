@@ -8,7 +8,7 @@ VERSION ?= $(shell git describe --always)
 IMAGE_REGISTRY ?= airconduct/kuilei
 GOPROXY ?= https://proxy.golang.org,direct
 release:
-	docker buildx build --platform=linux/amdd64,linux/arm64 \
+	docker buildx build --platform=linux/amd64,linux/arm64 \
 		--label=${VERSION} \
 		--build-arg GOPROXY=${GOPROXY}  \
 		-t ${IMAGE_REGISTRY}:${VERSION} --push .
