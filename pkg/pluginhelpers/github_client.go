@@ -58,12 +58,12 @@ func (c *githubClientWrapper) ListFiles(ctx context.Context, repo plugins.GitRep
 	return commitFiles, nil
 }
 
-func (c *githubClientWrapper) GetPR(ctx context.Context, repo plugins.GitRepo, number int) (*plugins.GitPullRequest, error) {
+func (c *githubClientWrapper) GetPR(ctx context.Context, repo plugins.GitRepo, number int) (plugins.GitPullRequest, error) {
 	pr, _, err := c.ghClient.PullRequests.Get(ctx, repo.Owner.Name, repo.Name, number)
 	if err != nil {
-		return nil, err
+		return plugins.GitPullRequest{}, err
 	}
-	return &plugins.GitPullRequest{
+	return plugins.GitPullRequest{
 		ID:        int(pr.GetID()),
 		Number:    pr.GetNumber(),
 		State:     pr.GetState(),

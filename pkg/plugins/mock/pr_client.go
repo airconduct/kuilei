@@ -8,7 +8,7 @@ import (
 
 func FakeGitPRClient(
 	listFiles func(context.Context, plugins.GitRepo, plugins.GitPullRequest) ([]plugins.GitCommitFile, error),
-	getPR func(ctx context.Context, repo plugins.GitRepo, number int) (*plugins.GitPullRequest, error),
+	getPR func(ctx context.Context, repo plugins.GitRepo, number int) (plugins.GitPullRequest, error),
 	mergePR func(ctx context.Context, repo plugins.GitRepo, number int, method string) error,
 ) plugins.GitPRClient {
 	return &fakePRClient{
@@ -20,7 +20,7 @@ func FakeGitPRClient(
 
 type fakePRClient struct {
 	listFiles func(context.Context, plugins.GitRepo, plugins.GitPullRequest) ([]plugins.GitCommitFile, error)
-	getPR     func(ctx context.Context, repo plugins.GitRepo, number int) (*plugins.GitPullRequest, error)
+	getPR     func(ctx context.Context, repo plugins.GitRepo, number int) (plugins.GitPullRequest, error)
 	mergePR   func(ctx context.Context, repo plugins.GitRepo, number int, method string) error
 }
 
@@ -28,7 +28,7 @@ func (c *fakePRClient) ListFiles(ctx context.Context, repo plugins.GitRepo, pr p
 	return c.listFiles(ctx, repo, pr)
 }
 
-func (c *fakePRClient) GetPR(ctx context.Context, repo plugins.GitRepo, number int) (*plugins.GitPullRequest, error) {
+func (c *fakePRClient) GetPR(ctx context.Context, repo plugins.GitRepo, number int) (plugins.GitPullRequest, error) {
 	return c.getPR(ctx, repo, number)
 }
 

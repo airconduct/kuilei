@@ -33,8 +33,8 @@ var _ = Describe("Plugin lgtm", func() {
 					{Path: "pkg/xxxx/aaaa/1111"}, {Path: "pkg/yyyy/aaaa"}, {Path: "foo"}, {Path: "bar/xxxx/bbbb"},
 				}, nil
 			},
-			func(ctx context.Context, repo plugins.GitRepo, number int) (*plugins.GitPullRequest, error) {
-				return &plugins.GitPullRequest{Number: 11, User: plugins.GitUser{Name: "foouser"}}, nil
+			func(ctx context.Context, repo plugins.GitRepo, number int) (plugins.GitPullRequest, error) {
+				return plugins.GitPullRequest{Number: 11, User: plugins.GitUser{Name: "foouser"}}, nil
 			},
 			func(ctx context.Context, repo plugins.GitRepo, number int, method string) error {
 				return nil

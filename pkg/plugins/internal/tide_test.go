@@ -19,7 +19,6 @@ var _ = Describe("Plugin tide", func() {
 
 	When("Using git comment plugin", func() {
 		globalLock := sync.RWMutex{}
-		merged := false
 		fakePR := &plugins.GitPullRequest{
 			Number:    1,
 			State:     plugins.PullRequestStateOpen,
@@ -37,10 +36,15 @@ var _ = Describe("Plugin tide", func() {
 
 		tide := plugins.GetGitCommentPlugin("tide", plugins.ClientSets{
 			GitPRClient: mock.FakeGitPRClient(
-				nil, nil, func(ctx context.Context, repo plugins.GitRepo, number int, method string) error {
+				nil, func(ctx context.Context, repo plugins.GitRepo, number int) (plugins.GitPullRequest, error) {
 					globalLock.Lock()
 					defer globalLock.Unlock()
-					merged = true
+					return *fakePR, nil
+				},
+				func(ctx context.Context, repo plugins.GitRepo, number int, method string) error {
+					globalLock.Lock()
+					defer globalLock.Unlock()
+					fakePR.State = plugins.PullRequestStateMerged
 					return nil
 				},
 			),
@@ -77,9 +81,12 @@ var _ = Describe("Plugin tide", func() {
 
 		It("Should create tide status", func() {
 			Expect(tide.Do(context.TODO(), plugins.GitCommentEvent{
+				GitComment: plugins.GitComment{
+					Number: 1, IsPR: true,
+				},
 				Repo: plugins.GitRepo{Name: "foo_repo", Owner: plugins.GitUser{Name: "foo_owner"}},
 			})).Should(Succeed())
-			Expect(merged).Should(BeFalse())
+			Expect(fakePR.State).Should(Equal(plugins.PullRequestStateOpen))
 
 			Eventually(func(g Gomega) {
 				globalLock.RLock()
@@ -100,6 +107,7 @@ var _ = Describe("Plugin tide", func() {
 			Eventually(func(g Gomega) {
 				globalLock.RLock()
 				defer globalLock.RUnlock()
+				g.Expect(fakePR.Commits[0].Statuses).Should(HaveLen(1))
 				g.Expect(fakePR.Commits[0].Statuses[0].Description).Should(Equal("Not mergeable. Needs approved label."))
 			}, 5*time.Second, time.Second).Should(Succeed())
 		})
@@ -112,6 +120,7 @@ var _ = Describe("Plugin tide", func() {
 			Eventually(func(g Gomega) {
 				globalLock.RLock()
 				defer globalLock.RUnlock()
+				g.Expect(fakePR.Commits[0].Statuses).Should(HaveLen(1))
 				g.Expect(fakePR.Commits[0].Statuses[0].State).Should(Equal("SUCCESS"))
 			}, 5*time.Second, time.Second).Should(Succeed())
 		})
@@ -132,7 +141,7 @@ var _ = Describe("Plugin tide", func() {
 			Eventually(func(g Gomega) {
 				globalLock.RLock()
 				defer globalLock.RUnlock()
-				g.Expect(merged).Should(BeTrue())
+				g.Expect(fakePR.State).Should(Equal(plugins.PullRequestStateMerged))
 			}, 5*time.Second, time.Second).Should(Succeed())
 		})
 	})

@@ -25,7 +25,7 @@ type GitIssueClient interface {
 
 type GitPRClient interface {
 	ListFiles(context.Context, GitRepo, GitPullRequest) ([]GitCommitFile, error)
-	GetPR(ctx context.Context, repo GitRepo, number int) (*GitPullRequest, error)
+	GetPR(ctx context.Context, repo GitRepo, number int) (GitPullRequest, error)
 	MergePR(ctx context.Context, repo GitRepo, number int, method string) error
 }
 
