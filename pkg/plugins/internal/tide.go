@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/util/workqueue"
 
 	"github.com/airconduct/kuilei/pkg/plugins"
 )
@@ -26,6 +26,8 @@ const (
 	// tide pool or the empty string if the reason is unknown. See requirementDiff.
 	statusNotInPool = "Not mergeable"
 )
+
+var setLoggerOnce sync.Once
 
 func init() {
 	plugins.RegisterGitCommentPlugin("tide", func(cs plugins.ClientSets) plugins.GitCommentPlugin {
@@ -56,7 +58,10 @@ type tideGitCommentPlugin struct {
 }
 
 func (p *tideGitCommentPlugin) Do(ctx context.Context, e plugins.GitCommentEvent) error {
-	return p.tidePlugin.enableRepo(e.Repo)
+	if e.IsPR {
+		p.tidePlugin.enqueue(tidePRKey{Repo: e.Repo, Number: e.Number})
+	}
+	return nil
 }
 
 type tideGitPRPlugin struct {
@@ -64,7 +69,8 @@ type tideGitPRPlugin struct {
 }
 
 func (p *tideGitPRPlugin) Do(ctx context.Context, e plugins.GitPREvent) error {
-	return p.tidePlugin.enableRepo(e.Repo)
+	p.tidePlugin.enqueue(tidePRKey{Repo: e.Repo, Number: e.Number})
+	return nil
 }
 
 type tidePlugin struct {
@@ -99,22 +105,38 @@ func (lp *tidePlugin) BindFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&lp.mergeMethod, "merge-method", "merge", "Merge method: merge | squash | rebase")
 }
 
-func (p *tidePlugin) enableRepo(repo plugins.GitRepo) error {
-	tide.start(repo, &tideContext{
+func (p *tidePlugin) enqueue(key tidePRKey) {
+	setLoggerOnce.Do(func() {
+		tide.logger = p.loggerClient.GetLogger().WithName("tide_controller")
+	})
+	tide.start(key, &tideContext{
 		RepoClient:     p.repoClient,
 		PRClient:       p.prClient,
 		SearchClient:   p.searchClient,
-		Repo:           repo,
+		Repo:           key.Repo,
 		RequiredLabels: p.required,
 		MissingLabels:  p.missing,
 		Log: p.loggerClient.GetLogger().WithName("tide_context").
-			WithValues("repo", repo.Name).WithValues("owner", repo.Owner.Name),
+			WithValues("repo", key.Repo.Name).WithValues("owner", key.Repo.Owner.Name),
 	})
-	return nil
 }
 
 var tide *tideController = &tideController{
-	contexts: sync.Map{},
+	queue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "tideContextQueue"),
+}
+
+type tidePRKey struct {
+	Repo   plugins.GitRepo
+	Number int
+}
+
+func (k tidePRKey) String() string {
+	return fmt.Sprintf("id: %d, repo: %s/%s", k.Number, k.Repo.Owner.Name, k.Repo.Name)
+}
+
+type tideResult struct {
+	Requeue      bool
+	RequeueAfter time.Duration
 }
 
 type tideContext struct {
@@ -129,62 +151,121 @@ type tideContext struct {
 }
 
 type tideController struct {
-	contexts sync.Map
+	startOnce sync.Once
+
+	logger       logr.Logger
+	contextStore tideContextStore
+	queue        workqueue.RateLimitingInterface
 }
 
-func (c *tideController) start(repo plugins.GitRepo, tideCtx *tideContext) {
-	var tideCtxVal *atomic.Value
-	v, ok := c.contexts.Load(repo)
-	if ok {
-		tideCtxVal = v.(*atomic.Value)
-		tideCtxVal.Store(tideCtx)
-		return
-	}
+func (c *tideController) start(key tidePRKey, tideCtx *tideContext) {
+	tideCtx.Log.Info("Get tide event", "key", key)
+	c.queue.Add(key)
+	c.contextStore.Set(key.Repo, tideCtx)
 
-	tideCtx.Log.Info("Start tide controller")
-	tideCtxVal = &atomic.Value{}
-	tideCtxVal.Store(tideCtx)
-	c.contexts.Store(repo, tideCtxVal)
-	go c.syncRepo(tideCtxVal)
-}
-
-func (c *tideController) syncRepo(tideCtxVal *atomic.Value) {
-	wait.Forever(func() {
-		v := tideCtxVal.Load()
-		tideCtx, ok := v.(*tideContext)
-		if !ok {
-			return
-		}
-		tideCtx.Log.Info("Start tide sync")
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-		prs, err := tideCtx.SearchClient.SearchPR(ctx, tideCtx.Repo, plugins.PullRequestStateOpen)
-		if err != nil {
-			tideCtx.Log.Error(err, "Failed to search pr")
-			return
-		}
-		for _, pr := range prs {
-			tideStatus, ok := getTideStatus(pr)
-			state, desc, merge := wantsStateAndDescription(pr, tideCtx.RequiredLabels, tideCtx.MissingLabels)
-			if !ok || (tideStatus.State != state || tideStatus.Description != desc) {
-				err := tideCtx.RepoClient.CreateStatus(ctx, tideCtx.Repo, pr.Head.Sha, plugins.GitCommitStatus{
-					State:       state,
-					Context:     statusContext,
-					Description: desc,
-				})
-				if err != nil {
-					tideCtx.Log.Error(err, "Failed to create status", "pr", pr.Number)
-					continue
+	c.startOnce.Do(func() {
+		// Start work process
+		go func() {
+			wait.Forever(func() {
+				for c.work() {
 				}
-			}
-			if !merge {
-				continue
-			}
-			if err := tideCtx.PRClient.MergePR(ctx, tideCtx.Repo, pr.Number, tideCtx.MergeMethod); err != nil {
-				tideCtx.Log.Error(err, "Failed to merge pr", "pr", pr.Number)
-			}
+			}, TideSyncInterval)
+		}()
+		// Start list process
+		go func() {
+			wait.Forever(func() {
+				repos := []plugins.GitRepo{}
+				c.contextStore.contexts.Range(func(key, value any) bool {
+					repos = append(repos, key.(plugins.GitRepo))
+					return true
+				})
+				for _, repo := range repos {
+					tideCtx := c.contextStore.Get(repo)
+					if tideCtx == nil {
+						continue
+					}
+					prs, err := tideCtx.SearchClient.SearchPR(context.TODO(), repo, plugins.PullRequestStateOpen)
+					if err != nil {
+						c.logger.Error(err, "Failed to search pr", "repo", repo)
+						continue
+					}
+					for _, pr := range prs {
+						c.logger.Info("Enqueue pr by search", "repo", repo)
+						c.queue.Add(tidePRKey{Repo: repo, Number: pr.Number})
+					}
+				}
+			}, TideSyncInterval)
+		}()
+	})
+}
+
+func (c *tideController) work() bool {
+	v, shutdown := c.queue.Get()
+	if shutdown {
+		return false
+	}
+	defer c.queue.Done(v)
+
+	key := v.(tidePRKey)
+	ctx, cancle := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancle()
+	result, err := c.syncOnce(ctx, key)
+	if err != nil {
+		c.logger.Error(err, "Failed to sync tide")
+		c.queue.AddRateLimited(key)
+		return true
+	}
+	if result.Requeue {
+		after := result.RequeueAfter
+		if after == 0 {
+			after = time.Second
 		}
-	}, TideSyncInterval)
+		c.logger.Info("Requeue after", "key", key, "after", after)
+		c.queue.AddAfter(key, after)
+	}
+	return true
+}
+
+func (c *tideController) syncOnce(ctx context.Context, key tidePRKey) (tideResult, error) {
+	c.logger.Info("Start to handel pr", "key", key)
+	tideCtx := c.contextStore.Get(key.Repo)
+	if tideCtx == nil {
+		return tideResult{}, fmt.Errorf("tide context not found, key: %s", key)
+	}
+	pr, err := tideCtx.PRClient.GetPR(ctx, key.Repo, key.Number)
+	if err != nil {
+		return tideResult{}, fmt.Errorf("failed to get pr, %w", err)
+	}
+	if pr.State != plugins.PullRequestStateOpen {
+		tideCtx.Log.Info("Skip to handel not open pr", "key", key)
+		return tideResult{}, nil
+	}
+	return c.syncPR(ctx, tideCtx, pr)
+}
+
+func (c *tideController) syncPR(ctx context.Context, tideCtx *tideContext, pr plugins.GitPullRequest) (tideResult, error) {
+	tideStatus, ok := getTideStatus(pr)
+	state, desc, merge := wantsStateAndDescription(pr, tideCtx.RequiredLabels, tideCtx.MissingLabels)
+	if !ok || (tideStatus.State != state || tideStatus.Description != desc) {
+		err := tideCtx.RepoClient.CreateStatus(ctx, tideCtx.Repo, pr.Head.Sha, plugins.GitCommitStatus{
+			State:       state,
+			Context:     statusContext,
+			Description: desc,
+		})
+		if err != nil {
+			tideCtx.Log.Error(err, "Failed to create status", "pr", pr.Number)
+			return tideResult{}, err
+		}
+	}
+	if !merge {
+		tideCtx.Log.Info("No need to merge", "pr id", pr.Number)
+		return tideResult{Requeue: true}, nil
+	}
+	if err := tideCtx.PRClient.MergePR(ctx, tideCtx.Repo, pr.Number, tideCtx.MergeMethod); err != nil {
+		tideCtx.Log.Error(err, "Failed to merge pr", "pr", pr.Number)
+		return tideResult{}, err
+	}
+	return tideResult{}, nil
 }
 
 func getTideStatus(pr plugins.GitPullRequest) (plugins.GitCommitStatus, bool) {
@@ -259,4 +340,20 @@ func wantsStateAndDescription(pr plugins.GitPullRequest, required, missing []str
 		return plugins.GitStatusStateError, "PR has a merge conflict.", false
 	}
 	return plugins.GitStatusStateSuccess, statusInPool, tideSuccess
+}
+
+type tideContextStore struct {
+	contexts sync.Map
+}
+
+func (s *tideContextStore) Get(repo plugins.GitRepo) *tideContext {
+	v, ok := s.contexts.Load(repo)
+	if !ok {
+		return nil
+	}
+	return v.(*tideContext)
+}
+
+func (s *tideContextStore) Set(repo plugins.GitRepo, tctx *tideContext) {
+	s.contexts.Store(repo, tctx)
 }

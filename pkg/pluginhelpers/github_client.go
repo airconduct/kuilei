@@ -9,20 +9,20 @@ import (
 	"github.com/google/go-github/v48/github"
 )
 
-func GitIssueClientFromGithub(gh *probot.GithubClient) plugins.GitIssueClient {
+func GitIssueClientFromGithub(gh *probot.GitHubClient) plugins.GitIssueClient {
 	return &githubClientWrapper{ghClient: gh}
 }
 
-func GitPRClientFromGithub(gh *probot.GithubClient) plugins.GitPRClient {
+func GitPRClientFromGithub(gh *probot.GitHubClient) plugins.GitPRClient {
 	return &githubClientWrapper{ghClient: gh}
 }
 
-func GitRepoClientFromGithub(gh *probot.GithubClient) plugins.GitRepoClient {
+func GitRepoClientFromGithub(gh *probot.GitHubClient) plugins.GitRepoClient {
 	return &githubClientWrapper{ghClient: gh}
 }
 
 type githubClientWrapper struct {
-	ghClient *probot.GithubClient
+	ghClient *probot.GitHubClient
 }
 
 func (c *githubClientWrapper) CreateIssueComment(ctx context.Context, repo plugins.GitRepo, issue plugins.GitIssue, in plugins.GitIssueComment) error {
@@ -58,12 +58,12 @@ func (c *githubClientWrapper) ListFiles(ctx context.Context, repo plugins.GitRep
 	return commitFiles, nil
 }
 
-func (c *githubClientWrapper) GetPR(ctx context.Context, repo plugins.GitRepo, number int) (*plugins.GitPullRequest, error) {
+func (c *githubClientWrapper) GetPR(ctx context.Context, repo plugins.GitRepo, number int) (plugins.GitPullRequest, error) {
 	pr, _, err := c.ghClient.PullRequests.Get(ctx, repo.Owner.Name, repo.Name, number)
 	if err != nil {
-		return nil, err
+		return plugins.GitPullRequest{}, err
 	}
-	return &plugins.GitPullRequest{
+	return plugins.GitPullRequest{
 		ID:        int(pr.GetID()),
 		Number:    pr.GetNumber(),
 		State:     pr.GetState(),

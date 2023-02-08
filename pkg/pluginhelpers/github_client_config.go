@@ -12,7 +12,7 @@ import (
 	"github.com/airconduct/kuilei/pkg/plugins"
 )
 
-func PluginConfigClientFromGithub(gh *probot.GithubClient, configPath string, cache ConfigCache[plugins.Configuration]) plugins.PluginConfigClient {
+func PluginConfigClientFromGithub(gh *probot.GitHubClient, configPath string, cache ConfigCache[plugins.Configuration]) plugins.PluginConfigClient {
 	c := &githubPluginConfigClient{
 		ghClient: gh, configPath: configPath,
 		configCache: cache,
@@ -22,7 +22,7 @@ func PluginConfigClientFromGithub(gh *probot.GithubClient, configPath string, ca
 }
 
 type githubPluginConfigClient struct {
-	ghClient   *probot.GithubClient
+	ghClient   *probot.GitHubClient
 	configPath string
 
 	configCache ConfigCache[plugins.Configuration]

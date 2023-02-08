@@ -14,7 +14,7 @@ import (
 	"github.com/airconduct/kuilei/pkg/plugins"
 )
 
-func OwnersClientFromGithub(gh *probot.GithubClient, ownersFileName string, cache ConfigCache[plugins.OwnersConfiguration]) plugins.OwnersClient {
+func OwnersClientFromGithub(gh *probot.GitHubClient, ownersFileName string, cache ConfigCache[plugins.OwnersConfiguration]) plugins.OwnersClient {
 	c := &githubOwnersClient{
 		ghClient:       gh,
 		ownersFileName: ownersFileName,
@@ -25,7 +25,7 @@ func OwnersClientFromGithub(gh *probot.GithubClient, ownersFileName string, cach
 }
 
 type githubOwnersClient struct {
-	ghClient       *probot.GithubClient
+	ghClient       *probot.GitHubClient
 	ownersFileName string
 
 	configCache ConfigCache[plugins.OwnersConfiguration]
