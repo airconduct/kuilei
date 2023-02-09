@@ -66,7 +66,7 @@ func (c *githubClientWrapper) GetPR(ctx context.Context, repo plugins.GitRepo, n
 	return plugins.GitPullRequest{
 		ID:        int(pr.GetID()),
 		Number:    pr.GetNumber(),
-		State:     pr.GetState(),
+		State:     strings.ToUpper(pr.GetState()),
 		Locked:    pr.GetLocked(),
 		Title:     pr.GetTitle(),
 		Body:      pr.GetBody(),
