@@ -22,16 +22,15 @@ var _ = Describe("Plugin tide", func() {
 		fakePR := &plugins.GitPullRequest{
 			Number:    1,
 			State:     plugins.PullRequestStateOpen,
-			Head:      plugins.GitBranch{Sha: "foo"},
+			Head:      plugins.GitBranch{SHA: "foo"},
 			Locked:    false,
 			Title:     "foo",
 			Body:      "foo",
 			Mergeable: plugins.GitMergeableStateMergeable,
 			Labels:    []plugins.Label{},
-			Commits: []plugins.GitCommit{
-				{Sha: "foo"},
-			},
 		}
+		statuses := []plugins.GitCommitStatus{}
+		checks := []plugins.GitCommitCheck{}
 		callCreateStatus := false
 
 		tide := plugins.GetGitCommentPlugin("tide", plugins.ClientSets{
@@ -49,27 +48,42 @@ var _ = Describe("Plugin tide", func() {
 				},
 			),
 			GitSearchClient: mock.FakeSearchClient(map[string]interface{}{
-				"SearchPR": func(ctx context.Context, repo plugins.GitRepo, state string) ([]plugins.GitPullRequest, error) {
+				"SearchPR": func(ctx context.Context, repo plugins.GitRepo, state string) ([]plugins.GitPullRequestSearchResult, error) {
 					globalLock.RLock()
 					defer globalLock.RUnlock()
-					return []plugins.GitPullRequest{*fakePR}, nil
+					commit := plugins.GitCommit{Sha: "foo"}
+					commit.Statuses = append(commit.Statuses, statuses...)
+					commit.Checks = append(commit.Checks, checks...)
+					return []plugins.GitPullRequestSearchResult{{
+						GitPullRequest: *fakePR, Commits: []plugins.GitCommit{commit},
+					}}, nil
 				},
 			}),
 			GitRepoClient: mock.FakeRepoClient(map[string]interface{}{
+				"ListStatuses": func(ctx context.Context, repo plugins.GitRepo, ref string) ([]plugins.GitCommitStatus, error) {
+					globalLock.Lock()
+					defer globalLock.Unlock()
+					return statuses, nil
+				},
+				"ListChecks": func(ctx context.Context, repo plugins.GitRepo, ref string) ([]plugins.GitCommitCheck, error) {
+					globalLock.Lock()
+					defer globalLock.Unlock()
+					return checks, nil
+				},
 				"CreateStatus": func(ctx context.Context, repo plugins.GitRepo, ref string, status plugins.GitCommitStatus) error {
 					globalLock.Lock()
 					defer globalLock.Unlock()
 					callCreateStatus = true
 
 					var target *plugins.GitCommitStatus
-					for idx, s := range fakePR.Commits[0].Statuses {
+					for idx, s := range statuses {
 						if s.Context == status.Context {
-							target = &fakePR.Commits[0].Statuses[idx]
+							target = &statuses[idx]
 						}
 					}
 					if target == nil {
-						fakePR.Commits[0].Statuses = append(fakePR.Commits[0].Statuses, plugins.GitCommitStatus{Context: status.Context})
-						target = &fakePR.Commits[0].Statuses[len(fakePR.Commits[0].Statuses)-1]
+						statuses = append(statuses, plugins.GitCommitStatus{Context: status.Context})
+						target = &statuses[len(statuses)-1]
 					}
 					target.Description = status.Description
 					target.State = status.State
@@ -92,11 +106,10 @@ var _ = Describe("Plugin tide", func() {
 				globalLock.RLock()
 				defer globalLock.RUnlock()
 
-				g.Expect(len(fakePR.Commits)).Should(Equal(1))
-				g.Expect(len(fakePR.Commits[0].Statuses)).Should(Equal(1))
-				g.Expect(fakePR.Commits[0].Statuses[0].Context).Should(Equal("tide"))
-				g.Expect(fakePR.Commits[0].Statuses[0].State).Should(Equal("PENDING"))
-				g.Expect(fakePR.Commits[0].Statuses[0].Description).Should(Equal("Not mergeable. Needs approved, lgtm label."))
+				g.Expect(len(statuses)).Should(Equal(1))
+				g.Expect(statuses[0].Context).Should(Equal("tide"))
+				g.Expect(statuses[0].State).Should(Equal("PENDING"))
+				g.Expect(statuses[0].Description).Should(Equal("Not mergeable. Needs approved, lgtm label."))
 			}, 5*time.Second, time.Second).Should(Succeed())
 		})
 		It("Should change desc", func() {
@@ -107,8 +120,8 @@ var _ = Describe("Plugin tide", func() {
 			Eventually(func(g Gomega) {
 				globalLock.RLock()
 				defer globalLock.RUnlock()
-				g.Expect(fakePR.Commits[0].Statuses).Should(HaveLen(1))
-				g.Expect(fakePR.Commits[0].Statuses[0].Description).Should(Equal("Not mergeable. Needs approved label."))
+				g.Expect(statuses).Should(HaveLen(1))
+				g.Expect(statuses[0].Description).Should(Equal("Not mergeable. Needs approved label."))
 			}, 5*time.Second, time.Second).Should(Succeed())
 		})
 
@@ -120,8 +133,8 @@ var _ = Describe("Plugin tide", func() {
 			Eventually(func(g Gomega) {
 				globalLock.RLock()
 				defer globalLock.RUnlock()
-				g.Expect(fakePR.Commits[0].Statuses).Should(HaveLen(1))
-				g.Expect(fakePR.Commits[0].Statuses[0].State).Should(Equal("SUCCESS"))
+				g.Expect(statuses).Should(HaveLen(1))
+				g.Expect(statuses[0].State).Should(Equal("SUCCESS"))
 			}, 5*time.Second, time.Second).Should(Succeed())
 		})
 

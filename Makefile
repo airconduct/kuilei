@@ -1,6 +1,7 @@
 build-local:
 	go build -o bin/kuilei github.com/airconduct/kuilei/cmd/kuilei
 
+.PHONY: test
 test:
 	go test -v --race ./...
 

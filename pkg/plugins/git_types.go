@@ -132,14 +132,18 @@ type GitPullRequest struct {
 	Body      string
 	Mergeable GitMergeableState
 	Labels    []Label
-	Commits   []GitCommit
 	Assignees []GitUser
 	User      GitUser
 }
 
+type GitPullRequestSearchResult struct {
+	GitPullRequest
+	Commits []GitCommit
+}
+
 type GitBranch struct {
 	Ref string
-	Sha string
+	SHA string
 }
 
 type GitCommit struct {
@@ -179,20 +183,9 @@ type GitCheckStatus = string
 
 // The possible states of a check run in a status rollup.
 const (
-	GitCheckStatusActionRequired GitCheckStatus = "ACTION_REQUIRED" // The check run requires action.
-	GitCheckStatusCancelled      GitCheckStatus = "CANCELLED"       // The check run has been cancelled.
-	GitCheckStatusCompleted      GitCheckStatus = "COMPLETED"       // The check run has been completed.
-	GitCheckStatusFailure        GitCheckStatus = "FAILURE"         // The check run has failed.
-	GitCheckStatusInProgress     GitCheckStatus = "IN_PROGRESS"     // The check run is in progress.
-	GitCheckStatusNeutral        GitCheckStatus = "NEUTRAL"         // The check run was neutral.
-	GitCheckStatusPending        GitCheckStatus = "PENDING"         // The check run is in pending state.
-	GitCheckStatusQueued         GitCheckStatus = "QUEUED"          // The check run has been queued.
-	GitCheckStatusSkipped        GitCheckStatus = "SKIPPED"         // The check run was skipped.
-	GitCheckStatusStale          GitCheckStatus = "STALE"           // The check run was marked stale by GitHub. Only GitHub can use this conclusion.
-	GitCheckStatusStartupFailure GitCheckStatus = "STARTUP_FAILURE" // The check run has failed at startup.
-	GitCheckStatusSuccess        GitCheckStatus = "SUCCESS"         // The check run has succeeded.
-	GitCheckStatusTimedOut       GitCheckStatus = "TIMED_OUT"       // The check run has timed out.
-	GitCheckStatusWaiting        GitCheckStatus = "WAITING"         // The check run is in waiting state.
+	GitCheckStatusCompleted  GitCheckStatus = "COMPLETED"   // The check run has been completed.
+	GitCheckStatusInProgress GitCheckStatus = "IN_PROGRESS" // The check run is in progress.
+	GitCheckStatusQueued     GitCheckStatus = "QUEUED"      // The check run has been queued.
 )
 
 type GitCheckConclusion = string
@@ -200,14 +193,13 @@ type GitCheckConclusion = string
 // The possible states for a check suite or run conclusion.
 const (
 	GitCheckConclusionStateActionRequired GitCheckConclusion = "ACTION_REQUIRED" // The check suite or run requires action.
-	GitCheckConclusionStateTimedOut       GitCheckConclusion = "TIMED_OUT"       // The check suite or run has timed out.
 	GitCheckConclusionStateCancelled      GitCheckConclusion = "CANCELLED"       // The check suite or run has been cancelled.
 	GitCheckConclusionStateFailure        GitCheckConclusion = "FAILURE"         // The check suite or run has failed.
-	GitCheckConclusionStateSuccess        GitCheckConclusion = "SUCCESS"         // The check suite or run has succeeded.
 	GitCheckConclusionStateNeutral        GitCheckConclusion = "NEUTRAL"         // The check suite or run was neutral.
+	GitCheckConclusionStateSuccess        GitCheckConclusion = "SUCCESS"         // The check suite or run has succeeded.
 	GitCheckConclusionStateSkipped        GitCheckConclusion = "SKIPPED"         // The check suite or run was skipped.
-	GitCheckConclusionStateStartupFailure GitCheckConclusion = "STARTUP_FAILURE" // The check suite or run has failed at startup.
 	GitCheckConclusionStateStale          GitCheckConclusion = "STALE"           // The check suite or run was marked stale by GitHub. Only GitHub can use this conclusion.
+	GitCheckConclusionStateTimedOut       GitCheckConclusion = "TIMED_OUT"       // The check suite or run has timed out.
 )
 
 type GitCommitCheck struct {
