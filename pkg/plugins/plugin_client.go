@@ -31,10 +31,12 @@ type GitPRClient interface {
 
 type GitRepoClient interface {
 	CreateStatus(ctx context.Context, repo GitRepo, ref string, status GitCommitStatus) error
+	ListStatuses(ctx context.Context, repo GitRepo, ref string) ([]GitCommitStatus, error)
+	ListChecks(ctx context.Context, repo GitRepo, ref string) ([]GitCommitCheck, error)
 }
 
 type GitSearchClient interface {
-	SearchPR(ctx context.Context, repo GitRepo, state string) ([]GitPullRequest, error)
+	SearchPR(ctx context.Context, repo GitRepo, state string) ([]GitPullRequestSearchResult, error)
 }
 
 type PluginConfigClient interface {

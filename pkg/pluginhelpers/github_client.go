@@ -73,6 +73,11 @@ func (c *githubClientWrapper) GetPR(ctx context.Context, repo plugins.GitRepo, n
 		Labels:    GitLabelsFromGithub(pr.Labels),
 		Assignees: GitUsersFromGithub(pr.Assignees),
 		User:      GitUserFromGithub(pr.User),
+		// Add head
+		Head: plugins.GitBranch{
+			SHA: pr.Head.GetSHA(),
+			Ref: pr.Head.GetRef(),
+		},
 	}, nil
 }
 
@@ -93,4 +98,39 @@ func (c *githubClientWrapper) CreateStatus(
 		TargetURL:   github.String(status.TargetURL),
 	})
 	return err
+}
+
+func (c *githubClientWrapper) ListStatuses(ctx context.Context, repo plugins.GitRepo, ref string) ([]plugins.GitCommitStatus, error) {
+	statuses, _, err := c.ghClient.Repositories.ListStatuses(ctx, repo.Owner.Name, repo.Name, ref, &github.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	var out []plugins.GitCommitStatus
+	for _, s := range statuses {
+		out = append(out, plugins.GitCommitStatus{
+			Context:     s.GetContext(),
+			State:       strings.ToUpper(s.GetState()),
+			TargetURL:   s.GetTargetURL(),
+			Description: s.GetDescription(),
+		})
+	}
+	return out, nil
+}
+
+func (c *githubClientWrapper) ListChecks(ctx context.Context, repo plugins.GitRepo, ref string) ([]plugins.GitCommitCheck, error) {
+	resutls, _, err := c.ghClient.Checks.ListCheckRunsForRef(
+		ctx, repo.Owner.Name, repo.Name, ref, &github.ListCheckRunsOptions{},
+	)
+	if err != nil {
+		return nil, err
+	}
+	var out []plugins.GitCommitCheck
+	for _, check := range resutls.CheckRuns {
+		out = append(out, plugins.GitCommitCheck{
+			Name:       check.GetName(),
+			Status:     strings.ToUpper(check.GetStatus()),
+			Conclusion: strings.ToUpper(check.GetConclusion()),
+		})
+	}
+	return out, nil
 }

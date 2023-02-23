@@ -19,3 +19,15 @@ func (c *fakeRepoClient) CreateStatus(ctx context.Context, repo plugins.GitRepo,
 		ctx, repo, ref, status,
 	)
 }
+
+func (c *fakeRepoClient) ListStatuses(ctx context.Context, repo plugins.GitRepo, ref string) ([]plugins.GitCommitStatus, error) {
+	return c.funcs["ListStatuses"].(func(ctx context.Context, repo plugins.GitRepo, ref string) ([]plugins.GitCommitStatus, error))(
+		ctx, repo, ref,
+	)
+}
+
+func (c *fakeRepoClient) ListChecks(ctx context.Context, repo plugins.GitRepo, ref string) ([]plugins.GitCommitCheck, error) {
+	return c.funcs["ListChecks"].(func(ctx context.Context, repo plugins.GitRepo, ref string) ([]plugins.GitCommitCheck, error))(
+		ctx, repo, ref,
+	)
+}

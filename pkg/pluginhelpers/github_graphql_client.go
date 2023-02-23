@@ -19,7 +19,7 @@ type githubGraphqlClient struct {
 	Client probot.GitGraphQLClient
 }
 
-func (c *githubGraphqlClient) SearchPR(ctx context.Context, repo plugins.GitRepo, state string) ([]plugins.GitPullRequest, error) {
+func (c *githubGraphqlClient) SearchPR(ctx context.Context, repo plugins.GitRepo, state string) ([]plugins.GitPullRequestSearchResult, error) {
 	q := &prSearchQuery{}
 	if err := c.Client.Query(ctx, q, map[string]interface{}{
 		"owner":  githubv4.String(repo.Owner.Name),
@@ -28,7 +28,7 @@ func (c *githubGraphqlClient) SearchPR(ctx context.Context, repo plugins.GitRepo
 	}); err != nil {
 		return nil, err
 	}
-	prs := []plugins.GitPullRequest{}
+	prs := []plugins.GitPullRequestSearchResult{}
 	for _, pr := range q.Repository.PullRequests.Nodes {
 		// Get labels
 		labels := []plugins.Label{}
@@ -71,21 +71,23 @@ func (c *githubGraphqlClient) SearchPR(ctx context.Context, repo plugins.GitRepo
 			})
 		}
 
-		prs = append(prs, plugins.GitPullRequest{
-			Number:    int(pr.Number),
-			State:     state,
-			Locked:    pr.Locked,
-			Title:     pr.Title,
-			Body:      pr.Body,
-			Mergeable: pr.Mergeable,
-			Head: plugins.GitBranch{
-				Ref: pr.HeadRefName,
-				Sha: pr.HeadRefOid,
+		prs = append(prs, plugins.GitPullRequestSearchResult{
+			GitPullRequest: plugins.GitPullRequest{
+				Number:    int(pr.Number),
+				State:     state,
+				Locked:    pr.Locked,
+				Title:     pr.Title,
+				Body:      pr.Body,
+				Mergeable: pr.Mergeable,
+				Head: plugins.GitBranch{
+					Ref: pr.HeadRefName,
+					SHA: pr.HeadRefOid,
+				},
+				Labels:    labels,
+				Assignees: assignees,
+				User:      plugins.GitUser{Name: pr.Author.Login},
 			},
-			Labels:    labels,
-			Commits:   commits,
-			Assignees: assignees,
-			User:      plugins.GitUser{Name: pr.Author.Login},
+			Commits: commits,
 		})
 	}
 	return prs, nil
