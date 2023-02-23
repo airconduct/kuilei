@@ -263,6 +263,7 @@ func (c *tideController) syncOnce(ctx context.Context, key tidePRKey) (tideResul
 	}
 	// Handle all prs
 	requeue := false
+	var after time.Duration
 	for _, prResult := range results {
 		// Get head commit of the pr
 		commit, ok := getHeadCommit(prResult.GitPullRequest.Head, prResult.Commits)
@@ -279,9 +280,10 @@ func (c *tideController) syncOnce(ctx context.Context, key tidePRKey) (tideResul
 		// Requeue the pr if not merged
 		if !merged {
 			requeue = true
+			after = 30 * time.Second
 		}
 	}
-	return tideResult{Requeue: requeue}, nil
+	return tideResult{Requeue: requeue, RequeueAfter: after}, nil
 }
 
 // syncPR handle
