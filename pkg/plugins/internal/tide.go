@@ -280,7 +280,8 @@ func (c *tideController) syncOnce(ctx context.Context, key tidePRKey) (tideResul
 		// Requeue the pr if not merged
 		if !merged {
 			requeue = true
-			after = 30 * time.Second
+			// TODO: We should use a value from configuration or argument rather than hard code
+			after = 30 * time.Minute
 		}
 	}
 	return tideResult{Requeue: requeue, RequeueAfter: after}, nil
