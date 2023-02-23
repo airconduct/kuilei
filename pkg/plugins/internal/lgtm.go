@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/go-logr/logr"
 	"github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/util/sets"
 
@@ -22,6 +23,7 @@ func init() {
 			issueClient: cs.GitIssueClient,
 			prClient:    cs.GitPRClient,
 			ownerClient: cs.OwnersClient,
+			logger:      cs.LoggerClient.GetLogger().WithName("lgtm_plugin"),
 		}
 		return plugin
 	})
@@ -31,6 +33,7 @@ type lgtmPlugin struct {
 	issueClient plugins.GitIssueClient
 	prClient    plugins.GitPRClient
 	ownerClient plugins.OwnersClient
+	logger      logr.Logger
 
 	allowAuthor bool
 }
@@ -96,6 +99,7 @@ func (lp *lgtmPlugin) Do(ctx context.Context, e plugins.GitCommentEvent) error {
 		}
 	}
 	if !reviewers.Has(strings.ToLower(e.User.Name)) {
+		lp.logger.Info("No reviewer matched", "user", e.User.Name, "reviewers", reviewers)
 		resp := "adding LGTM is restricted to approvers and reviewers in OWNERS files."
 		return lp.issueClient.CreateIssueComment(ctx, e.Repo, plugins.GitIssue{Number: e.Number}, plugins.GitIssueComment{
 			Body: plugins.FormatResponseRaw(e.Body, e.HTMLURL, e.User.Name, resp),
