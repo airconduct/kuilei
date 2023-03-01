@@ -12,7 +12,8 @@ release:
 	docker buildx build --platform=linux/amd64,linux/arm64 \
 		--label=${VERSION} \
 		--build-arg GOPROXY=${GOPROXY}  \
-		-t ${IMAGE_REGISTRY}:${VERSION} --push .
+		-t ${IMAGE_REGISTRY}:${VERSION} \
+		-t ${IMAGE_REGISTRY}:latest --push .
 
 # kind-setup:
 # 	kind create cluster --config hack/kind.yaml

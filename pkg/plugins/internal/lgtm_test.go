@@ -56,6 +56,7 @@ var _ = Describe("Plugin lgtm", func() {
 			}
 			return plugins.OwnersConfiguration{Reviewers: []string{"foouser"}}, nil
 		}),
+		LoggerClient: mock.FakeLoggerClient(),
 	}, []string{"--allow-author=true"}...)
 
 	It("Should not add lgtm", func() {
