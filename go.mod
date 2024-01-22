@@ -5,7 +5,7 @@ go 1.19
 require (
 	github.com/airconduct/go-probot v0.0.4
 	github.com/go-logr/logr v1.3.0
-	github.com/go-logr/zapr v1.2.4
+	github.com/go-logr/zapr v1.3.0
 	github.com/google/go-github/v48 v48.2.0
 	github.com/h2non/gock v1.2.0
 	github.com/onsi/ginkgo/v2 v2.13.0
